@@ -1,14 +1,14 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import date, datetime
 from typing import Optional, List
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 class UserResponse(BaseModel):
     id: int
-    email: EmailStr
+    email: str
     created_at: datetime
     class Config:
         from_attributes = True

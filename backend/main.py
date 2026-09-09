@@ -8,10 +8,18 @@ import schemas
 from database import engine, get_db
 import nlp_service
 
-# Create database tables
-models.Base.metadata.create_all(bind=engine)
+# We remove the synchronous create_all here to prevent Vercel Serverless cold start crashes.
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Expense Tracker API")
+
+@app.get("/init-db")
+def init_database():
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        return {"status": "Database tables created successfully!"}
+    except Exception as e:
+        return {"error": str(e)}
 
 import os
 

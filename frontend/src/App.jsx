@@ -1,12 +1,148 @@
 import { useState, useEffect } from 'react';
-import { Bot, Plus, WalletCards, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, PieChart as PieChartIcon, PenTool, Filter, Target, Edit2 } from 'lucide-react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Bot, Plus, WalletCards, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, PieChart as PieChartIcon, PenTool, Filter, Target, Edit2, LogOut, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-function App() {
+// Axios Interceptor for injecting JWT
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('username', email);
+      formData.append('password', password);
+      
+      const res = await axios.post(`${API_URL}/login`, formData);
+      localStorage.setItem('token', res.data.access_token);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Gagal login. Periksa email dan password Anda.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
+      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <WalletCards size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
+          <h1 className="text-gradient" style={{ fontSize: '2rem' }}>Expense AI</h1>
+          <p className="text-muted">Masuk ke Akun Anda</p>
+        </div>
+        
+        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+        
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Email</label>
+            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Password</label>
+            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
+            {loading ? 'Memproses...' : 'Login'}
+          </button>
+        </form>
+        
+        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          Belum punya akun? <span onClick={() => navigate('/register')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Daftar di sini</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Register() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (password !== confirmPassword) {
+      setError('Password tidak cocok!');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/register`, { email, password });
+      alert('Pendaftaran berhasil! Silakan login.');
+      navigate('/login');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Gagal mendaftar. Email mungkin sudah digunakan.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
+      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <UserIcon size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
+          <h1 className="text-gradient" style={{ fontSize: '1.75rem' }}>Buat Akun Baru</h1>
+          <p className="text-muted">Bergabung dengan Expense AI</p>
+        </div>
+        
+        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+        
+        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Email</label>
+            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Password</label>
+            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+          </div>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Konfirmasi Password</label>
+            <input type="password" className="input-field" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
+            {loading ? 'Memproses...' : 'Daftar Sekarang'}
+          </button>
+        </form>
+        
+        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          Sudah punya akun? <span onClick={() => navigate('/login')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Login</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ExpenseTracker() {
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState({ total: 0, income: 0, expense: 0 });
@@ -50,6 +186,11 @@ function App() {
 
   const [categories, setCategories] = useState([]);
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
   const fetchCategories = async () => {
     try {
       const res = await axios.get(`${API_URL}/categories/`);
@@ -58,6 +199,7 @@ function App() {
           setManualForm(prev => ({...prev, category_name: res.data[0].name}));
       }
     } catch (e) {
+      if (e.response?.status === 401) handleLogout();
       console.error(e);
     }
   };
@@ -152,6 +294,7 @@ function App() {
       setIncomeCatData(Object.keys(incByCategory).map(k => ({ name: k, value: incByCategory[k] })).sort((a,b)=>b.value-a.value));
 
     } catch (error) {
+      if (error.response?.status === 401) handleLogout();
       console.error("Failed to fetch transactions:", error);
     } finally {
       setLoading(false);
@@ -168,6 +311,7 @@ function App() {
       setNlpInput('');
       await fetchTransactions();
     } catch (error) {
+      if (error.response?.status === 401) handleLogout();
       alert("Gagal memproses input teks. Pastikan format teks jelas atau API Key Gemini sudah di set.");
       console.error(error);
     } finally {
@@ -198,6 +342,7 @@ function App() {
       setManualForm({...manualForm, amount: '', description: ''});
       await fetchTransactions();
     } catch (error) {
+      if (error.response?.status === 401) handleLogout();
       alert("Gagal menyimpan transaksi manual.");
       console.error(error);
     } finally {
@@ -211,6 +356,7 @@ function App() {
       await axios.delete(`${API_URL}/transactions/${id}`);
       await fetchTransactions();
     } catch(err) {
+      if (err.response?.status === 401) handleLogout();
       alert("Gagal menghapus transaksi.");
     }
   };
@@ -231,9 +377,14 @@ function App() {
           <h1 className="text-gradient">Expense AI</h1>
           <p className="text-muted">Personal Finance Tracker</p>
         </div>
-        <button className="btn-icon">
-          <WalletCards size={24} />
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button className="btn-icon">
+            <WalletCards size={24} />
+          </button>
+          <button className="btn-icon" onClick={handleLogout} title="Keluar">
+            <LogOut size={20} style={{ color: 'var(--danger)' }} />
+          </button>
+        </div>
       </header>
 
       {/* Filter Section */}
@@ -565,6 +716,34 @@ function App() {
         )}
       </section>
     </div>
+  );
+}
+
+// Protected Route Component
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <ExpenseTracker />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

@@ -69,7 +69,119 @@ function Login() {
         
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
           Belum punya akun? <span onClick={() => navigate('/register')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Daftar di sini</span>
+          <br/><br/>
+          <span onClick={() => navigate('/forgot-password')} style={{ color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>Lupa Password?</span>
         </p>
+      </div>
+    </div>
+  );
+}
+
+function ForgotPassword() {
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/forgot-password`, { email });
+      setMessage(res.data.message);
+    } catch (err) {
+      setMessage('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
+      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <WalletCards size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
+          <h1 className="text-gradient" style={{ fontSize: '1.75rem' }}>Lupa Password</h1>
+          <p className="text-muted">Masukkan email Anda untuk reset password</p>
+        </div>
+        
+        {message && <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>{message}</div>}
+        
+        <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Email</label>
+            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
+            {loading ? 'Memproses...' : 'Kirim Link Reset'}
+          </button>
+        </form>
+        
+        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          Kembali ke <span onClick={() => navigate('/login')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Login</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ResetPassword() {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  
+  // Extract token from URL
+  const searchParams = new URLSearchParams(window.location.search);
+  const token = searchParams.get('token');
+
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (password !== confirmPassword) {
+      setError('Password tidak cocok!');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/reset-password`, { token, new_password: password });
+      setSuccess('Password berhasil direset! Anda akan dialihkan ke halaman login...');
+      setTimeout(() => navigate('/login'), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Gagal mereset password. Link mungkin kedaluwarsa.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
+      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <WalletCards size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
+          <h1 className="text-gradient" style={{ fontSize: '1.75rem' }}>Buat Password Baru</h1>
+        </div>
+        
+        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+        {success && <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{success}</div>}
+        
+        <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Password Baru</label>
+            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+          </div>
+          <div className="input-group" style={{ margin: 0 }}>
+            <label>Konfirmasi Password Baru</label>
+            <input type="password" className="input-field" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading || !token}>
+            {loading ? 'Memproses...' : 'Simpan Password'}
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -734,6 +846,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route 
           path="/" 
           element={

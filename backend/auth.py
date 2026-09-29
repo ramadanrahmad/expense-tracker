@@ -32,6 +32,20 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+def create_reset_token(email: str):
+    expire = datetime.utcnow() + timedelta(minutes=15) # Token valid for 15 minutes
+    to_encode = {"sub": email, "exp": expire, "type": "reset"}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_reset_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "reset":
+            return None
+        return payload.get("sub")
+    except JWTError:
+        return None
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

@@ -250,12 +250,8 @@ function App() {
     <div className="container animate-slide-up">
       {/* Header */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <img src="/moneta-logo.jpg" alt="Moneta Logo" style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover' }} />
-          <div>
-            <h1 className="text-gradient" style={{ margin: 0, fontSize: '1.75rem', lineHeight: 1.2 }}>Moneta</h1>
-            <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem' }}>Finance App</p>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <img src="/moneta-logo.jpg" alt="Moneta Logo" style={{ width: '140px', borderRadius: '16px', objectFit: 'cover' }} />
         </div>
       </header>
 

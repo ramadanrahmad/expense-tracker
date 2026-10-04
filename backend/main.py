@@ -32,7 +32,7 @@ def read_root():
 @app.post("/parse-nlp")
 def parse_transaction_nlp(nlp_input: NLPInput):
     try:
-        result = nlp_service.parse_transaction(nlp_input.text)
+        result = nlp_service.parse_text_to_transaction(nlp_input.text)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"NLP Processing Error: {str(e)}")

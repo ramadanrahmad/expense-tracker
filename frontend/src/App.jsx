@@ -27,12 +27,6 @@ function App() {
   // UI States
   const [activeTab, setActiveTab] = useState('ai'); 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2500);
-    return () => clearTimeout(timer);
-  }, []);
   
   // Filter States
   const [filterType, setFilterType] = useState('all');
@@ -238,13 +232,7 @@ function App() {
     }).format(number || 0);
   };
 
-  if (showSplash) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} className="animate-slide-up">
-        <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '280px', maxWidth: '80vw' }} />
-      </div>
-    );
-  }
+
 
   return (
     <div className="container animate-slide-up">

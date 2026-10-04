@@ -240,11 +240,6 @@ function App() {
           <h1 className="text-gradient">Expense AI</h1>
           <p className="text-muted">Personal Finance Tracker</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button className="btn-icon">
-            <WalletCards size={24} />
-          </button>
-        </div>
       </header>
 
       {/* Filter Section */}

@@ -74,8 +74,8 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
     2. Perhatikan dengan teliti nominal gabungan. Contoh "8 juta 173 ribu" harus ditulis sebagai 8173000. Jangan potong angkanya!
     3. Jika user menyebutkan BANYAK transaksi terpisah dalam satu kalimat (misalnya "makan siang 50 ribu, isi bensin 30 ribu"), PECAH menjadi item transaksi yang terpisah di dalam array. JANGAN dijumlahkan menjadi satu transaksi gabungan.
     4. KONTEKS PENGHASILAN (INCOME) VS PENGELUARAN (EXPENSE): 
-       - Jika teks mengisyaratkan "menambah", "mendapatkan uang", "diberi", "menerima", "gaji", "bonus", atau "uang jajan" (menerima uang), set `type` menjadi "income". 
-       - Jika teks mengisyaratkan "mengurangi", "membeli", "membayar", "makan", "jajan" (menghabiskan uang), atau mengeluarkan uang, set `type` menjadi "expense".
+       - Jika teks mengisyaratkan "menambah", "mendapatkan uang", "diberi", "menerima", "gaji", "bonus", "uang jajan" (menerima uang), atau menyatakan kepemilikan uang seperti "uang saya di...", "saldo", "sisa uang", "ada uang", set `type` menjadi "income". 
+       - Jika teks mengisyaratkan "mengurangi", "membeli", "membayar", "makan", "jajan" (menghabiskan uang), atau mengeluarkan uang, set `type` menjadi "expense". Jika teks membingungkan, asumsikan sebagai "expense" kecuali ada kata-kata pemasukan.
     5. PENCOCOKAN KATEGORI: Jika `type` adalah "income", Kategori HARUS berupa kategori pemasukan (contoh: "Uang Saku", "Gaji", "Bonus"). JANGAN PERNAH menempatkan "income" ke dalam kategori pengeluaran seperti "Makanan & Minuman" atau "Belanja", meskipun ada kata "jajan".
     
     Teks input: "{text}"
@@ -154,7 +154,7 @@ def _parse_with_regex(text: str) -> dict:
         
     # 1. Determine tx_type FIRST
     tx_type = "expense"
-    if any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih"]):
+    if any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih", "uang saya", "saldo", "sisa", "ada uang"]):
         tx_type = "income"
     if any(word in text for word in ["mengurangi", "keluar", "bayar", "beli"]):
         tx_type = "expense"

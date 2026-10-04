@@ -1,262 +1,22 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Bot, Plus, WalletCards, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, PieChart as PieChartIcon, PenTool, Filter, Target, Edit2, LogOut, User as UserIcon } from 'lucide-react';
+import { Bot, WalletCards, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, PieChart as PieChartIcon, PenTool, Filter, Target, Edit2 } from 'lucide-react';
 import axios from 'axios';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-// Axios Interceptor for injecting JWT
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('username', email);
-      formData.append('password', password);
-      
-      const res = await axios.post(`${API_URL}/login`, formData);
-      localStorage.setItem('token', res.data.access_token);
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Gagal login. Periksa email dan password Anda.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
-      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <WalletCards size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
-          <h1 className="text-gradient" style={{ fontSize: '2rem' }}>Expense AI</h1>
-          <p className="text-muted">Masuk ke Akun Anda</p>
-        </div>
-        
-        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
-        
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Email</label>
-            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
-          </div>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Password</label>
-            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
-            {loading ? 'Memproses...' : 'Login'}
-          </button>
-        </form>
-        
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Belum punya akun? <span onClick={() => navigate('/register')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Daftar di sini</span>
-          <br/><br/>
-          <span onClick={() => navigate('/forgot-password')} style={{ color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>Lupa Password?</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ForgotPassword() {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleForgot = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await axios.post(`${API_URL}/forgot-password`, { email });
-      setMessage(res.data.message);
-    } catch (err) {
-      setMessage('Terjadi kesalahan. Silakan coba lagi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
-      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <WalletCards size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
-          <h1 className="text-gradient" style={{ fontSize: '1.75rem' }}>Lupa Password</h1>
-          <p className="text-muted">Masukkan email Anda untuk reset password</p>
-        </div>
-        
-        {message && <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>{message}</div>}
-        
-        <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Email</label>
-            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
-            {loading ? 'Memproses...' : 'Kirim Link Reset'}
-          </button>
-        </form>
-        
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Kembali ke <span onClick={() => navigate('/login')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Login</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ResetPassword() {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+function App() {
+  // LocalStorage Initializers
+  const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('transactions')) || []);
+  const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('categories')) || [
+    {id: 1, name: 'Makanan & Minuman', type: 'expense'},
+    {id: 2, name: 'Transportasi', type: 'expense'},
+    {id: 3, name: 'Gaji', type: 'income'},
+    {id: 4, name: 'Lainnya', type: 'expense'}
+  ]);
   
-  // Extract token from URL
-  const searchParams = new URLSearchParams(window.location.search);
-  const token = searchParams.get('token');
-
-  const handleReset = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (password !== confirmPassword) {
-      setError('Password tidak cocok!');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      await axios.post(`${API_URL}/reset-password`, { token, new_password: password });
-      setSuccess('Password berhasil direset! Anda akan dialihkan ke halaman login...');
-      setTimeout(() => navigate('/login'), 3000);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Gagal mereset password. Link mungkin kedaluwarsa.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
-      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <WalletCards size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
-          <h1 className="text-gradient" style={{ fontSize: '1.75rem' }}>Buat Password Baru</h1>
-        </div>
-        
-        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
-        {success && <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{success}</div>}
-        
-        <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Password Baru</label>
-            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-          </div>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Konfirmasi Password Baru</label>
-            <input type="password" className="input-field" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading || !token}>
-            {loading ? 'Memproses...' : 'Simpan Password'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (password !== confirmPassword) {
-      setError('Password tidak cocok!');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      await axios.post(`${API_URL}/register`, { email, password });
-      alert('Pendaftaran berhasil! Silakan login.');
-      navigate('/login');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Gagal mendaftar. Email mungkin sudah digunakan.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
-      <div className="glass card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <UserIcon size={48} className="text-accent" style={{ margin: '0 auto 1rem', color: 'var(--accent-primary)' }} />
-          <h1 className="text-gradient" style={{ fontSize: '1.75rem' }}>Buat Akun Baru</h1>
-          <p className="text-muted">Bergabung dengan Expense AI</p>
-        </div>
-        
-        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
-        
-        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Email</label>
-            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
-          </div>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Password</label>
-            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-          </div>
-          <div className="input-group" style={{ margin: 0 }}>
-            <label>Konfirmasi Password</label>
-            <input type="password" className="input-field" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
-            {loading ? 'Memproses...' : 'Daftar Sekarang'}
-          </button>
-        </form>
-        
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Sudah punya akun? <span onClick={() => navigate('/login')} style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Login</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ExpenseTracker() {
-  const navigate = useNavigate();
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [balance, setBalance] = useState({ total: 0, income: 0, expense: 0 });
   
   // Chart Data States
@@ -296,122 +56,93 @@ function ExpenseTracker() {
     description: ''
   });
 
-  const [categories, setCategories] = useState([]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/categories/`);
-      setCategories(res.data);
-      if (res.data.length > 0 && !manualForm.category_name) {
-          setManualForm(prev => ({...prev, category_name: res.data[0].name}));
-      }
-    } catch (e) {
-      if (e.response?.status === 401) handleLogout();
-      console.error(e);
-    }
-  };
+  // Save to LocalStorage whenever data changes
+  useEffect(() => {
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+  }, [transactions]);
 
   useEffect(() => {
-    if (filterType === 'custom' && !customRange.start && !customRange.end) {
-        // Skip fetching if custom but empty
-    } else {
-        fetchTransactions();
-        fetchCategories();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, customRange]);
+    localStorage.setItem('categories', JSON.stringify(categories));
+  }, [categories]);
 
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      let params = {};
-      const today = new Date();
-      
-      if (filterType === '7days') {
-        const past = new Date(today);
-        past.setDate(today.getDate() - 6);
-        params.start_date = past.toISOString().split('T')[0];
-        params.end_date = today.toISOString().split('T')[0];
-      } else if (filterType === 'month') {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const formatDate = (date) => {
-            const d = new Date(date);
-            const month = '' + (d.getMonth() + 1);
-            const day = '' + d.getDate();
-            const year = d.getFullYear();
-            return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
-        };
-        params.start_date = formatDate(start);
-        params.end_date = formatDate(end);
-      } else if (filterType === 'year') {
-        params.start_date = `${today.getFullYear()}-01-01`;
-        params.end_date = `${today.getFullYear()}-12-31`;
-      } else if (filterType === 'custom') {
-        if (customRange.start) params.start_date = customRange.start;
-        if (customRange.end) params.end_date = customRange.end;
+  // Process data for UI based on filters
+  useEffect(() => {
+    let filtered = [...transactions];
+    const today = new Date();
+    
+    if (filterType === '7days') {
+      const past = new Date(today);
+      past.setDate(today.getDate() - 6);
+      past.setHours(0,0,0,0);
+      filtered = filtered.filter(t => new Date(t.date) >= past);
+    } else if (filterType === 'month') {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+      filtered = filtered.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
+    } else if (filterType === 'year') {
+      const start = new Date(today.getFullYear(), 0, 1);
+      const end = new Date(today.getFullYear(), 11, 31, 23, 59, 59);
+      filtered = filtered.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
+    } else if (filterType === 'custom') {
+      if (customRange.start) {
+        filtered = filtered.filter(t => new Date(t.date) >= new Date(customRange.start));
+      }
+      if (customRange.end) {
+        const endDay = new Date(customRange.end);
+        endDay.setHours(23, 59, 59);
+        filtered = filtered.filter(t => new Date(t.date) <= endDay);
+      }
+    }
+
+    // Sort descending by date
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    setFilteredTransactions(filtered);
+
+    // Calculations
+    let inc = 0;
+    let exp = 0;
+    const groupedBy = {};
+    const expByCategory = {};
+    const incByCategory = {};
+    
+    const isYearly = filterType === 'year';
+
+    filtered.forEach(t => {
+      // Balance
+      if (t.transaction_type === 'income') inc += t.amount;
+      else exp += t.amount;
+
+      // Bar Chart (Time)
+      const dateObj = new Date(t.date);
+      let key = '';
+      if (isYearly) {
+        key = dateObj.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+      } else {
+        key = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
       }
 
-      const response = await axios.get(`${API_URL}/transactions/`, { params });
-      const data = response.data;
-      setTransactions(data);
+      if (!groupedBy[key]) groupedBy[key] = { name: key, income: 0, expense: 0, rawDate: dateObj.getTime() };
+      if (t.transaction_type === 'income') groupedBy[key].income += t.amount;
+      else groupedBy[key].expense += t.amount;
       
-      // Calculations
-      let inc = 0;
-      let exp = 0;
-      const groupedBy = {};
-      const expByCategory = {};
-      const incByCategory = {};
-      
-      const isYearly = filterType === 'year';
+      // Pie Chart (Category)
+      const catName = t.category?.name || 'Lainnya';
+      if (t.transaction_type === 'income') {
+        incByCategory[catName] = (incByCategory[catName] || 0) + t.amount;
+      } else {
+        expByCategory[catName] = (expByCategory[catName] || 0) + t.amount;
+      }
+    });
 
-      data.forEach(t => {
-        // Balance
-        if (t.transaction_type === 'income') inc += t.amount;
-        else exp += t.amount;
+    setBalance({ total: inc - exp, income: inc, expense: exp });
+    
+    const cData = Object.values(groupedBy).sort((a, b) => a.rawDate - b.rawDate);
+    setChartData(cData);
+    
+    setExpenseCatData(Object.keys(expByCategory).map(k => ({ name: k, value: expByCategory[k] })).sort((a,b)=>b.value-a.value));
+    setIncomeCatData(Object.keys(incByCategory).map(k => ({ name: k, value: incByCategory[k] })).sort((a,b)=>b.value-a.value));
 
-        // Bar Chart (Time)
-        const dateObj = new Date(t.date);
-        let key = '';
-        if (isYearly) {
-          key = dateObj.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
-        } else {
-          key = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-        }
-
-        if (!groupedBy[key]) groupedBy[key] = { name: key, income: 0, expense: 0, rawDate: dateObj.getTime() };
-        if (t.transaction_type === 'income') groupedBy[key].income += t.amount;
-        else groupedBy[key].expense += t.amount;
-        
-        // Pie Chart (Category)
-        const catName = t.category?.name || 'Lainnya';
-        if (t.transaction_type === 'income') {
-          incByCategory[catName] = (incByCategory[catName] || 0) + t.amount;
-        } else {
-          expByCategory[catName] = (expByCategory[catName] || 0) + t.amount;
-        }
-      });
-
-      setBalance({ total: inc - exp, income: inc, expense: exp });
-      
-      const cData = Object.values(groupedBy).sort((a, b) => a.rawDate - b.rawDate);
-      setChartData(cData);
-      
-      setExpenseCatData(Object.keys(expByCategory).map(k => ({ name: k, value: expByCategory[k] })).sort((a,b)=>b.value-a.value));
-      setIncomeCatData(Object.keys(incByCategory).map(k => ({ name: k, value: incByCategory[k] })).sort((a,b)=>b.value-a.value));
-
-    } catch (error) {
-      if (error.response?.status === 401) handleLogout();
-      console.error("Failed to fetch transactions:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [transactions, filterType, customRange]);
 
   const handleNlpSubmit = async (e) => {
     e.preventDefault();
@@ -419,12 +150,41 @@ function ExpenseTracker() {
     
     setIsSubmitting(true);
     try {
-      await axios.post(`${API_URL}/transactions/nlp/`, { text: nlpInput });
+      // Offline mode: We hit the new /parse-nlp endpoint which just returns JSON
+      const res = await axios.post(`${API_URL}/parse-nlp`, { text: nlpInput });
+      const parsedDataList = res.data; // Expected to be an array of parsed transactions
+
+      const newTransactions = [];
+      let currentCategories = [...categories];
+
+      parsedDataList.forEach(parsed => {
+        // Ensure category exists
+        const catName = parsed.category || "Lainnya";
+        const catType = parsed.type || "expense";
+        
+        let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+        if (!category) {
+          category = { id: Date.now() + Math.random(), name: catName, type: catType };
+          currentCategories.push(category);
+        }
+
+        newTransactions.push({
+          id: Date.now() + Math.random(),
+          amount: parsed.amount,
+          transaction_type: catType,
+          date: parsed.date || new Date().toISOString(),
+          description: parsed.description,
+          input_method: 'nlp',
+          category: category
+        });
+      });
+
+      setCategories(currentCategories);
+      setTransactions([...transactions, ...newTransactions]);
       setNlpInput('');
-      await fetchTransactions();
+      
     } catch (error) {
-      if (error.response?.status === 401) handleLogout();
-      alert("Gagal memproses input teks. Pastikan format teks jelas atau API Key Gemini sudah di set.");
+      alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi internet aktif untuk memanggil AI.");
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -435,42 +195,32 @@ function ExpenseTracker() {
     e.preventDefault();
     if (!manualForm.amount || !manualForm.description) return;
     
-    setIsSubmitting(true);
-    try {
-      const catRes = await axios.post(`${API_URL}/categories/`, {
-        name: manualForm.category_name,
-        type: manualForm.transaction_type
-      });
-      
-      await axios.post(`${API_URL}/transactions/`, {
-        amount: parseFloat(manualForm.amount),
-        transaction_type: manualForm.transaction_type,
-        date: manualForm.date,
-        description: manualForm.description,
-        input_method: 'manual',
-        category_id: catRes.data.id
-      });
-      
-      setManualForm({...manualForm, amount: '', description: ''});
-      await fetchTransactions();
-    } catch (error) {
-      if (error.response?.status === 401) handleLogout();
-      alert("Gagal menyimpan transaksi manual.");
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
+    let currentCategories = [...categories];
+    let category = currentCategories.find(c => c.name === manualForm.category_name && c.type === manualForm.transaction_type);
+    
+    if (!category) {
+      category = { id: Date.now() + Math.random(), name: manualForm.category_name || "Lainnya", type: manualForm.transaction_type };
+      currentCategories.push(category);
+      setCategories(currentCategories);
     }
+
+    const newTx = {
+      id: Date.now() + Math.random(),
+      amount: parseFloat(manualForm.amount),
+      transaction_type: manualForm.transaction_type,
+      date: new Date(manualForm.date).toISOString(),
+      description: manualForm.description,
+      input_method: 'manual',
+      category: category
+    };
+
+    setTransactions([...transactions, newTx]);
+    setManualForm({...manualForm, amount: '', description: ''});
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if(!window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
-    try {
-      await axios.delete(`${API_URL}/transactions/${id}`);
-      await fetchTransactions();
-    } catch(err) {
-      if (err.response?.status === 401) handleLogout();
-      alert("Gagal menghapus transaksi.");
-    }
+    setTransactions(transactions.filter(t => t.id !== id));
   };
 
   const formatRupiah = (number) => {
@@ -492,9 +242,6 @@ function ExpenseTracker() {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <button className="btn-icon">
             <WalletCards size={24} />
-          </button>
-          <button className="btn-icon" onClick={handleLogout} title="Keluar">
-            <LogOut size={20} style={{ color: 'var(--danger)' }} />
           </button>
         </div>
       </header>
@@ -594,7 +341,7 @@ function ExpenseTracker() {
          </div>
       </section>
 
-      {/* Bar Chart Section (Timeline) */}
+      {/* Bar Chart Section */}
       {chartData.length > 0 && (
         <section className="glass card" style={{ padding: '1rem' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -604,11 +351,7 @@ function ExpenseTracker() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                  contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
-                  formatter={(value) => formatRupiah(value)}
-                />
+                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }} formatter={(value) => formatRupiah(value)} />
                 <Bar dataKey="income" fill="var(--success)" radius={[4, 4, 0, 0]} name="Pemasukan" />
                 <Bar dataKey="expense" fill="var(--danger)" radius={[4, 4, 0, 0]} name="Pengeluaran" />
               </BarChart>
@@ -617,13 +360,12 @@ function ExpenseTracker() {
         </section>
       )}
 
-      {/* Pie Chart Section (Category Breakdown) */}
+      {/* Pie Chart Section */}
       {(expenseCatData.length > 0 || incomeCatData.length > 0) && (
         <section className="glass card" style={{ padding: '1rem' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <PieChartIcon size={18} className="text-muted" /> Rincian Kategori
           </h3>
-          
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {expenseCatData.length > 0 && (
               <div>
@@ -694,7 +436,7 @@ function ExpenseTracker() {
                 <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Ketikkan cerita transaksi Anda, AI akan memecahnya secara otomatis.</p>
               </div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isSubmitting || !nlpInput}>
-                {isSubmitting ? 'Memproses AI...' : 'Catat Transaksi'}
+                {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
               </button>
             </form>
           ) : (
@@ -726,10 +468,17 @@ function ExpenseTracker() {
               </div>
               
               <div className="input-group" style={{ margin: 0 }}>
-                <label>Kategori</label>
-                <select className="input-field" value={manualForm.category_name} onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})}>
-                  {categories.filter(c => c.type === manualForm.transaction_type).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
+                <label>Kategori (Bisa ketik baru)</label>
+                <input 
+                  list="category-list" 
+                  className="input-field" 
+                  value={manualForm.category_name} 
+                  onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})} 
+                  required
+                />
+                <datalist id="category-list">
+                  {categories.filter(c => c.type === manualForm.transaction_type).map(c => <option key={c.id} value={c.name} />)}
+                </datalist>
               </div>
 
               <div className="input-group" style={{ margin: 0 }}>
@@ -754,16 +503,14 @@ function ExpenseTracker() {
       <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem' }}>Riwayat Transaksi</h3>
         
-        {loading ? (
-          <p className="text-muted" style={{ textAlign: 'center', padding: '2rem' }}>Memuat data...</p>
-        ) : transactions.length === 0 ? (
+        {filteredTransactions.length === 0 ? (
           <div className="glass card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
             <p className="text-muted">Belum ada transaksi di rentang waktu ini.</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {Object.entries(
-              transactions.reduce((acc, tx) => {
+              filteredTransactions.reduce((acc, tx) => {
                 const dateStr = new Date(tx.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                 if (!acc[dateStr]) acc[dateStr] = [];
                 acc[dateStr].push(tx);
@@ -828,36 +575,6 @@ function ExpenseTracker() {
         )}
       </section>
     </div>
-  );
-}
-
-// Protected Route Component
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
-}
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <ExpenseTracker />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
-    </BrowserRouter>
   );
 }
 

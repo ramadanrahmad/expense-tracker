@@ -164,6 +164,20 @@ def read_transactions(skip: int = 0, limit: int = 1000, start_date: str = None, 
     return transactions
 
 # --- NLP Input ---
+@app.post("/parse-nlp")
+def parse_nlp(nlp_input: schemas.NLPInput):
+    # This endpoint is used for Offline Mode (Opsi 1)
+    # It just returns the parsed JSON from Gemini without saving to DB.
+    # Provide a default list of categories just for context
+    default_cats = ["Makanan", "Transportasi", "Hiburan", "Gaji", "Lainnya"]
+    
+    parsed_transactions = nlp_service.parse_text_to_transaction(nlp_input.text, default_cats)
+    
+    if not parsed_transactions:
+        raise HTTPException(status_code=400, detail="Could not parse transaction from text. Check your API key or text format.")
+        
+    return parsed_transactions
+
 @app.post("/transactions/nlp/", response_model=List[schemas.Transaction])
 def create_transaction_from_nlp(nlp_input: schemas.NLPInput, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     # Get existing categories to help NLP model

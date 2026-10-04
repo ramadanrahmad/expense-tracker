@@ -57,9 +57,9 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
     Jika user menyebutkan waktu seperti "kemarin", "hari ini", atau "2 hari yang lalu", hitung tanggal pastinya berdasarkan tanggal hari ini.
     
     DAFTAR KATEGORI YANG SUDAH ADA: {cat_str}.
-    PENTING: Selalu PRIORITASKAN memasukkan transaksi ke dalam salah satu KATEGORI YANG SUDAH ADA di atas. 
-    Contoh: Jika user menyebut "Pertalite" atau "Bensin", gunakan "Transportasi". Jika user menyebut "Uang dari orang tua" atau "Uang Jajan", gunakan "Uang Saku".
-    JANGAN membuat kategori baru yang bersinonim dengan daftar di atas. Hanya buat kategori baru jika benar-benar tidak cocok.
+    PENTING: 
+    1. Selalu PRIORITASKAN memasukkan transaksi ke dalam salah satu KATEGORI YANG SUDAH ADA di atas. JANGAN membuat kategori baru yang bersinonim dengan daftar di atas.
+    2. Perhatikan dengan teliti nominal gabungan. Contoh "8 juta 173 ribu" harus ditulis sebagai 8173000. Jangan potong angkanya!
     
     Teks input: "{text}"
     """
@@ -122,16 +122,15 @@ def _parse_with_regex(text: str) -> dict:
         val = float(val_str)
         
         if multiplier in ['ribu', 'rb', 'k']:
-            amount = int(val * 1000)
-            break
+            amount += int(val * 1000)
         elif multiplier == 'juta':
-            amount = int(val * 1000000)
-            break
+            amount += int(val * 1000000)
         elif val >= 1000:
-            amount = int(val)
-            break
+            amount += int(val)
         elif val > 0 and amount == 0:
-            amount = int(val)
+            # Only accept small numbers without multiplier if nothing else is found yet
+            # and next word might indicate currency or it's just a raw number
+            pass
             
     if amount == 0:
         return None

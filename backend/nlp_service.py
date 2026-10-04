@@ -39,8 +39,8 @@ def parse_text_to_transaction(text: str, existing_categories: List[str] = None) 
             pass # Fall through to regex
             
     print("WARNING: Using basic regex fallback.")
-    # Split text into clauses based on commas or ' dan ' for multi-transaction parsing
-    clauses = re.split(r',\s*|\s+dan\s+', text.lower())
+    # Split text into clauses based on common separators
+    clauses = re.split(r',\s*|\s+dan\s+|\s+sedangkan\s+|\s+sementara\s+|\s+terus\s+|\s+lalu\s+', text.lower())
     results = []
     for clause in clauses:
         clause = clause.strip()
@@ -73,6 +73,9 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
     1. Selalu PRIORITASKAN memasukkan transaksi ke dalam salah satu KATEGORI YANG SUDAH ADA di atas. JANGAN membuat kategori baru yang bersinonim dengan daftar di atas.
     2. Perhatikan dengan teliti nominal gabungan. Contoh "8 juta 173 ribu" harus ditulis sebagai 8173000. Jangan potong angkanya!
     3. Jika user menyebutkan BANYAK transaksi terpisah dalam satu kalimat (misalnya "makan siang 50 ribu, isi bensin 30 ribu"), PECAH menjadi item transaksi yang terpisah di dalam array. JANGAN dijumlahkan menjadi satu transaksi gabungan.
+    4. KONTEKS PENGHASILAN (INCOME) VS PENGELUARAN (EXPENSE): 
+       - Jika teks mengisyaratkan "menambah", "mendapatkan uang", "diberi", "menerima", "gaji", "bonus", atau "uang jajan" (menerima uang), set `type` menjadi "income". 
+       - Jika teks mengisyaratkan "mengurangi", "membeli", "membayar", "makan", "jajan" (menghabiskan uang), atau mengeluarkan uang, set `type` menjadi "expense".
     
     Teks input: "{text}"
     """
@@ -171,9 +174,11 @@ def _parse_with_regex(text: str) -> dict:
         if found:
             break
             
-    if category == "Gaji" or any(word in text for word in ["gaji", "dapat", "terima"]):
+    if category == "Gaji" or any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih"]):
         tx_type = "income"
-
+        
+    if any(word in text for word in ["mengurangi", "keluar", "bayar", "beli"]):
+        tx_type = "expense"
     return {
         "date": date,
         "amount": amount,

@@ -53,7 +53,8 @@ function App() {
     transaction_type: 'expense',
     date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
     category_name: 'Makanan & Minuman',
-    description: ''
+    description: '',
+    isNewCategory: false
   });
 
   // Save to LocalStorage whenever data changes
@@ -162,7 +163,7 @@ function App() {
         const catName = parsed.category || "Lainnya";
         const catType = parsed.type || "expense";
         
-        let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+        let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
         if (!category) {
           category = { id: Date.now() + Math.random(), name: catName, type: catType };
           currentCategories.push(category);
@@ -215,7 +216,7 @@ function App() {
     };
 
     setTransactions([...transactions, newTx]);
-    setManualForm({...manualForm, amount: '', description: ''});
+    setManualForm({...manualForm, amount: '', description: '', isNewCategory: false});
   };
 
   const handleDelete = (id) => {
@@ -453,7 +454,8 @@ function App() {
                       setManualForm({
                         ...manualForm, 
                         transaction_type: newType,
-                        category_name: filteredCats.length > 0 ? filteredCats[0].name : ''
+                        category_name: filteredCats.length > 0 ? filteredCats[0].name : '',
+                        isNewCategory: false
                       });
                     }}
                   >
@@ -468,17 +470,35 @@ function App() {
               </div>
               
               <div className="input-group" style={{ margin: 0 }}>
-                <label>Kategori (Bisa ketik baru)</label>
-                <input 
-                  list="category-list" 
+                <label>Kategori</label>
+                <select 
                   className="input-field" 
-                  value={manualForm.category_name} 
-                  onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})} 
-                  required
-                />
-                <datalist id="category-list">
-                  {categories.filter(c => c.type === manualForm.transaction_type).map(c => <option key={c.id} value={c.name} />)}
-                </datalist>
+                  value={manualForm.isNewCategory ? "NEW" : manualForm.category_name} 
+                  onChange={(e) => {
+                    if (e.target.value === "NEW") {
+                      setManualForm({...manualForm, isNewCategory: true, category_name: ''});
+                    } else {
+                      setManualForm({...manualForm, isNewCategory: false, category_name: e.target.value});
+                    }
+                  }}
+                >
+                  {categories.filter(c => c.type === manualForm.transaction_type).map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                  <option value="NEW">+ Tambah Kategori Baru...</option>
+                </select>
+                
+                {manualForm.isNewCategory && (
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    style={{ marginTop: '0.75rem' }}
+                    placeholder="Ketik nama kategori baru..." 
+                    value={manualForm.category_name} 
+                    onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})} 
+                    required 
+                  />
+                )}
               </div>
 
               <div className="input-group" style={{ margin: 0 }}>

@@ -241,7 +241,7 @@ function App() {
   if (showSplash) {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} className="animate-slide-up">
-        <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '150px' }} />
+        <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '280px', maxWidth: '80vw' }} />
       </div>
     );
   }
@@ -251,7 +251,7 @@ function App() {
       {/* Header */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '150px' }} />
+          <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '180px' }} />
         </div>
       </header>
 

@@ -1,31 +1,21 @@
-import traceback
-import sys
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from typing import List
+
+import models
+import schemas
+from database import engine, get_db
+import nlp_service
+import auth
+import email_utils
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import timedelta
+
+# We remove the synchronous create_all here to prevent Vercel Serverless cold start crashes.
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Expense Tracker API")
-
-try:
-    from fastapi import Depends, HTTPException
-    from fastapi.middleware.cors import CORSMiddleware
-    from sqlalchemy.orm import Session
-    from typing import List
-
-    import models
-    import schemas
-    from database import engine, get_db
-    import nlp_service
-    import auth
-    import email_utils
-    from fastapi.security import OAuth2PasswordRequestForm
-    from datetime import timedelta
-    from sqlalchemy import text
-except Exception as e:
-    error_trace = traceback.format_exc()
-    @app.middleware("http")
-    async def catch_all_exceptions(request: Request, call_next):
-        return JSONResponse(status_code=500, content={"error": "Initialization Failed", "traceback": error_trace})
-
 
 from sqlalchemy import text
 

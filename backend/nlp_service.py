@@ -76,6 +76,7 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
     4. KONTEKS PENGHASILAN (INCOME) VS PENGELUARAN (EXPENSE): 
        - Jika teks mengisyaratkan "menambah", "mendapatkan uang", "diberi", "menerima", "gaji", "bonus", atau "uang jajan" (menerima uang), set `type` menjadi "income". 
        - Jika teks mengisyaratkan "mengurangi", "membeli", "membayar", "makan", "jajan" (menghabiskan uang), atau mengeluarkan uang, set `type` menjadi "expense".
+    5. PENCOCOKAN KATEGORI: Jika `type` adalah "income", Kategori HARUS berupa kategori pemasukan (contoh: "Uang Saku", "Gaji", "Bonus"). JANGAN PERNAH menempatkan "income" ke dalam kategori pengeluaran seperti "Makanan & Minuman" atau "Belanja", meskipun ada kata "jajan".
     
     Teks input: "{text}"
     """
@@ -151,34 +152,50 @@ def _parse_with_regex(text: str) -> dict:
     if amount == 0:
         return None
         
-    category = "Lainnya"
+    # 1. Determine tx_type FIRST
     tx_type = "expense"
-    
-    categories_map = {
-        "Makanan & Minuman": ["makan", "minum", "kopi", "teh", "bakso", "roti", "warteg", "gofood", "grabfood", "jajan", "cemilan", "beras", "sayur", "buah", "indomie", "nasi"],
-        "Transportasi": ["bensin", "parkir", "tol", "gojek", "grab", "maxim", "indrive", "kereta", "krl", "mrt", "bus", "angkot", "tiket", "ojol", "ojek"],
-        "Belanja": ["beli", "belanja", "shopee", "tokopedia", "tokped", "lazada", "baju", "celana", "sepatu", "skincare", "sabun", "shampo", "deterjen"],
-        "Tagihan & Utilitas": ["listrik", "token", "pdam", "air", "wifi", "indihome", "internet", "pulsa", "kuota", "netflix", "spotify", "bpjs", "kos", "kontrakan"],
-        "Kesehatan": ["obat", "dokter", "sakit", "klinik", "apotek", "vitamin", "rumah sakit"],
-        "Hiburan": ["nonton", "bioskop", "main", "game", "liburan", "jalan-jalan", "rekreasi"],
-        "Gaji": ["gaji", "bonus", "dikasih", "dapat", "jualan", "transferan", "profit", "laba", "thr"]
-    }
-    
-    found = False
-    for cat_name, keywords in categories_map.items():
-        for kw in keywords:
-            if kw in text:
-                category = cat_name
-                found = True
-                break
-        if found:
-            break
-            
-    if category == "Gaji" or any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih"]):
+    if any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih"]):
         tx_type = "income"
-        
     if any(word in text for word in ["mengurangi", "keluar", "bayar", "beli"]):
         tx_type = "expense"
+        
+    # 2. Determine category
+    category = "Lainnya"
+    if tx_type == "income":
+        income_map = {
+            "Gaji": ["gaji", "bonus", "profit", "laba", "thr"],
+            "Uang Saku": ["jajan", "saku", "dikasih", "dapat", "transferan"]
+        }
+        found = False
+        for cat_name, keywords in income_map.items():
+            for kw in keywords:
+                if kw in text:
+                    category = cat_name
+                    found = True
+                    break
+            if found:
+                break
+        if not found:
+            category = "Pemasukan"
+    else:
+        expense_map = {
+            "Makanan & Minuman": ["makan", "minum", "kopi", "teh", "bakso", "roti", "warteg", "gofood", "grabfood", "jajan", "cemilan", "beras", "sayur", "buah", "indomie", "nasi"],
+            "Transportasi": ["bensin", "parkir", "tol", "gojek", "grab", "maxim", "indrive", "kereta", "krl", "mrt", "bus", "angkot", "tiket", "ojol", "ojek"],
+            "Belanja": ["beli", "belanja", "shopee", "tokopedia", "tokped", "lazada", "baju", "celana", "sepatu", "skincare", "sabun", "shampo", "deterjen"],
+            "Tagihan & Utilitas": ["listrik", "token", "pdam", "air", "wifi", "indihome", "internet", "pulsa", "kuota", "netflix", "spotify", "bpjs", "kos", "kontrakan"],
+            "Kesehatan": ["obat", "dokter", "sakit", "klinik", "apotek", "vitamin", "rumah sakit"],
+            "Hiburan": ["nonton", "bioskop", "main", "game", "liburan", "jalan-jalan", "rekreasi"]
+        }
+        found = False
+        for cat_name, keywords in expense_map.items():
+            for kw in keywords:
+                if kw in text:
+                    category = cat_name
+                    found = True
+                    break
+            if found:
+                break
+
     return {
         "date": date,
         "amount": amount,

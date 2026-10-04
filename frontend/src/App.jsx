@@ -194,7 +194,7 @@ function App() {
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
-    if (!manualForm.amount || !manualForm.description) return;
+    if (!manualForm.amount) return;
     
     let currentCategories = [...categories];
     let category = currentCategories.find(c => c.name === manualForm.category_name && c.type === manualForm.transaction_type);
@@ -207,10 +207,10 @@ function App() {
 
     const newTx = {
       id: Date.now() + Math.random(),
-      amount: parseFloat(manualForm.amount),
+      amount: parseFloat(manualForm.amount.toString().replace(/\./g, '')),
       transaction_type: manualForm.transaction_type,
       date: new Date(manualForm.date).toISOString(),
-      description: manualForm.description,
+      description: manualForm.description || "-",
       input_method: 'manual',
       category: category
     };
@@ -512,12 +512,34 @@ function App() {
 
               <div className="input-group" style={{ margin: 0 }}>
                 <label>Nominal (Rp)</label>
-                <input type="number" className="input-field" placeholder="0" value={manualForm.amount} onChange={(e) => setManualForm({...manualForm, amount: e.target.value})} required />
+                <input 
+                  type="text" 
+                  inputMode="numeric"
+                  className="input-field" 
+                  placeholder="0" 
+                  value={manualForm.amount} 
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    if (!rawValue) {
+                      setManualForm({...manualForm, amount: ''});
+                      return;
+                    }
+                    const formattedValue = new Intl.NumberFormat('id-ID').format(rawValue);
+                    setManualForm({...manualForm, amount: formattedValue});
+                  }} 
+                  required 
+                />
               </div>
 
               <div className="input-group" style={{ margin: 0 }}>
-                <label>Deskripsi</label>
-                <input type="text" className="input-field" placeholder="Catatan transaksi..." value={manualForm.description} onChange={(e) => setManualForm({...manualForm, description: e.target.value})} required />
+                <label>Deskripsi (Opsional)</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Catatan transaksi (opsional)..." 
+                  value={manualForm.description} 
+                  onChange={(e) => setManualForm({...manualForm, description: e.target.value})} 
+                />
               </div>
               
               <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={isSubmitting}>

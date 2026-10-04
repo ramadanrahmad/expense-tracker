@@ -470,29 +470,38 @@ function App() {
               </div>
               
               <div className="input-group" style={{ margin: 0 }}>
-                <label>Kategori</label>
-                <select 
-                  className="input-field" 
-                  value={manualForm.isNewCategory ? "NEW" : manualForm.category_name} 
-                  onChange={(e) => {
-                    if (e.target.value === "NEW") {
-                      setManualForm({...manualForm, isNewCategory: true, category_name: ''});
-                    } else {
-                      setManualForm({...manualForm, isNewCategory: false, category_name: e.target.value});
-                    }
-                  }}
-                >
-                  {categories.filter(c => c.type === manualForm.transaction_type).map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                  <option value="NEW">+ Tambah Kategori Baru...</option>
-                </select>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label style={{ margin: 0 }}>Kategori</label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (manualForm.isNewCategory) {
+                        const filtered = categories.filter(c => c.type === manualForm.transaction_type);
+                        setManualForm({...manualForm, isNewCategory: false, category_name: filtered.length > 0 ? filtered[0].name : ''});
+                      } else {
+                        setManualForm({...manualForm, isNewCategory: true, category_name: ''});
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {manualForm.isNewCategory ? 'Batal Tambah' : '+ Kategori Baru'}
+                  </button>
+                </div>
                 
-                {manualForm.isNewCategory && (
+                {!manualForm.isNewCategory ? (
+                  <select 
+                    className="input-field" 
+                    value={manualForm.category_name} 
+                    onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})}
+                  >
+                    {categories.filter(c => c.type === manualForm.transaction_type).map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
                   <input 
                     type="text" 
                     className="input-field" 
-                    style={{ marginTop: '0.75rem' }}
                     placeholder="Ketik nama kategori baru..." 
                     value={manualForm.category_name} 
                     onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})} 

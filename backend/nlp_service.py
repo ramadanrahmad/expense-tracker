@@ -77,12 +77,17 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
        - Jika teks mengisyaratkan "menambah", "mendapatkan uang", "diberi", "menerima", "gaji", "bonus", "uang jajan" (menerima uang), atau menyatakan kepemilikan uang seperti "uang saya di...", "saldo", "sisa uang", "ada uang", set `type` menjadi "income". 
        - Jika teks mengisyaratkan "mengurangi", "membeli", "membayar", "makan", "jajan" (menghabiskan uang), atau mengeluarkan uang, set `type` menjadi "expense". Jika teks membingungkan, asumsikan sebagai "expense" kecuali ada kata-kata pemasukan.
     5. PENCOCOKAN KATEGORI: Jika `type` adalah "income", Kategori HARUS berupa kategori pemasukan (contoh: "Uang Saku", "Gaji", "Bonus"). JANGAN PERNAH menempatkan "income" ke dalam kategori pengeluaran seperti "Makanan & Minuman" atau "Belanja", meskipun ada kata "jajan".
+    6. ANALISIS KONTEKS MENDALAM (PENTING!):
+       - Pahami ALIRAN UANG. Jika orang lain membayar ke user ("Andi bayar utang ke saya 50 ribu"), itu Pemasukan (income). Jika user membayar ke orang lain ("Saya bayar utang ke Andi 50 ribu"), itu Pengeluaran (expense).
+       - Kehilangan uang ("hilang", "kecopetan", "jatuh") = Pengeluaran (expense).
+       - Menemukan uang ("nemu uang", "dapat undian") = Pemasukan (income).
+       - Jika ada beberapa konteks berlawanan dalam satu kalimat (misal: "Gaji 5 juta tapi langsung bayar kos 1 juta"), PECAH menjadi 2 transaksi: Gaji (income) 5 juta, dan Bayar Kos (expense) 1 juta.
     
     Teks input: "{text}"
     """
     
     response = client.models.generate_content(
-        model='gemini-3.6-flash',
+        model='gemini-1.5-flash',
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",

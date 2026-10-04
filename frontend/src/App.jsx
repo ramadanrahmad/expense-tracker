@@ -27,6 +27,12 @@ function App() {
   // UI States
   const [activeTab, setActiveTab] = useState('ai'); 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 2500);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Filter States
   const [filterType, setFilterType] = useState('all');
@@ -232,13 +238,24 @@ function App() {
     }).format(number || 0);
   };
 
+  if (showSplash) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} className="animate-slide-up">
+        <img src="/moneta-logo.jpg" alt="Moneta Logo" style={{ width: '120px', borderRadius: '24px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }} />
+      </div>
+    );
+  }
+
   return (
     <div className="container animate-slide-up">
       {/* Header */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="text-gradient">Expense AI</h1>
-          <p className="text-muted">Personal Finance Tracker</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <img src="/moneta-logo.jpg" alt="Moneta Logo" style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover' }} />
+          <div>
+            <h1 className="text-gradient" style={{ margin: 0, fontSize: '1.75rem', lineHeight: 1.2 }}>Moneta</h1>
+            <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem' }}>Finance App</p>
+          </div>
         </div>
       </header>
 

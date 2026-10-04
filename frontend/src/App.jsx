@@ -249,7 +249,7 @@ function App() {
   return (
     <div className="container animate-slide-up">
       {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '150px' }} />
         </div>

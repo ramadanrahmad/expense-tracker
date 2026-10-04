@@ -39,8 +39,20 @@ def parse_text_to_transaction(text: str, existing_categories: List[str] = None) 
             pass # Fall through to regex
             
     print("WARNING: Using basic regex fallback.")
-    res = _parse_with_regex(text)
-    return [res] if res else []
+    # Split text into clauses based on commas or ' dan ' for multi-transaction parsing
+    clauses = re.split(r',\s*|\s+dan\s+', text.lower())
+    results = []
+    for clause in clauses:
+        clause = clause.strip()
+        if not clause: continue
+        res = _parse_with_regex(clause)
+        if res:
+            # We want original casing for description, so we do a quick hack
+            # to capitalize the first letter of the clause
+            res['description'] = clause.capitalize()
+            results.append(res)
+            
+    return results
 
 def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = None) -> List[dict]:
     client = genai.Client(api_key=api_key)
@@ -60,6 +72,7 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
     PENTING: 
     1. Selalu PRIORITASKAN memasukkan transaksi ke dalam salah satu KATEGORI YANG SUDAH ADA di atas. JANGAN membuat kategori baru yang bersinonim dengan daftar di atas.
     2. Perhatikan dengan teliti nominal gabungan. Contoh "8 juta 173 ribu" harus ditulis sebagai 8173000. Jangan potong angkanya!
+    3. Jika user menyebutkan BANYAK transaksi terpisah dalam satu kalimat (misalnya "makan siang 50 ribu, isi bensin 30 ribu"), PECAH menjadi item transaksi yang terpisah di dalam array. JANGAN dijumlahkan menjadi satu transaksi gabungan.
     
     Teks input: "{text}"
     """

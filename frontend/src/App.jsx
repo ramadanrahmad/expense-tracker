@@ -255,10 +255,10 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setFilterType('7days')} className={`btn ${filterType === '7days' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>7 Hari</button>
-          <button onClick={() => setFilterType('month')} className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Bulan Ini</button>
-          <button onClick={() => setFilterType('year')} className={`btn ${filterType === 'year' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Tahun Ini</button>
-          <button onClick={() => setFilterType('custom')} className={`btn ${filterType === 'custom' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Kustom</button>
+          <button onClick={() => setFilterType('7days')} className={`btn ${filterType === '7days' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Minggu</button>
+          <button onClick={() => setFilterType('month')} className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Bulan</button>
+          <button onClick={() => setFilterType('year')} className={`btn ${filterType === 'year' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Tahun</button>
+          <button onClick={() => setFilterType('custom')} className={`btn ${filterType === 'custom' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Custom</button>
         </div>
 
         {filterType === 'custom' && (
@@ -278,8 +278,8 @@ function App() {
       {/* Balance Card */}
       <section className="glass card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
-          <p className="text-muted">Total Saldo ({filterType === '7days' ? '7 Hari Terakhir' : filterType === 'month' ? 'Bulan Ini' : filterType === 'year' ? 'Tahun Ini' : 'Kustom'})</p>
-          <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{formatRupiah(balance.total)}</h2>
+          <p className="text-muted">Total Saldo (Semua Periode)</p>
+          <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{formatRupiah(transactions.reduce((acc, curr) => curr.transaction_type === 'income' ? acc + curr.amount : acc - curr.amount, 0))}</h2>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

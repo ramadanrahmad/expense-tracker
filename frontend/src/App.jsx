@@ -255,11 +255,10 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setFilterType('all')} className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Semua</button>
-          <button onClick={() => setFilterType('7days')} className={`btn ${filterType === '7days' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Minggu</button>
-          <button onClick={() => setFilterType('month')} className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Bulan</button>
-          <button onClick={() => setFilterType('year')} className={`btn ${filterType === 'year' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Tahun</button>
-          <button onClick={() => setFilterType('custom')} className={`btn ${filterType === 'custom' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Custom</button>
+          <button onClick={() => setFilterType(filterType === '7days' ? 'all' : '7days')} className={`btn ${filterType === '7days' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Minggu</button>
+          <button onClick={() => setFilterType(filterType === 'month' ? 'all' : 'month')} className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Bulan</button>
+          <button onClick={() => setFilterType(filterType === 'year' ? 'all' : 'year')} className={`btn ${filterType === 'year' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Tahun</button>
+          <button onClick={() => setFilterType(filterType === 'custom' ? 'all' : 'custom')} className={`btn ${filterType === 'custom' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Periode</button>
         </div>
 
         {filterType === 'custom' && (
@@ -279,7 +278,7 @@ function App() {
       {/* Balance Card */}
       <section className="glass card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
-          <p className="text-muted">{filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Custom'})`}</p>
+          <p className="text-muted">{filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}</p>
           <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{formatRupiah(transactions.reduce((acc, curr) => curr.transaction_type === 'income' ? acc + curr.amount : acc - curr.amount, 0))}</h2>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>

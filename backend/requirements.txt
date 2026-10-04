@@ -5,6 +5,3 @@ pydantic
 python-dotenv
 google-generativeai
 psycopg2-binary
-bcrypt
-python-jose[cryptography]
-python-multipart

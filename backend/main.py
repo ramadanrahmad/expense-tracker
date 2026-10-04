@@ -7,9 +7,6 @@ import models
 import schemas
 from database import engine, get_db
 import nlp_service
-import auth
-import email_utils
-from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 
 # We remove the synchronous create_all here to prevent Vercel Serverless cold start crashes.
@@ -126,32 +123,32 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
 
 # --- Categories ---
 @app.post("/categories/", response_model=schemas.Category)
-def create_category(category: schemas.CategoryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    db_category = models.Category(**category.model_dump(), user_id=current_user.id)
+def create_category(category: schemas.CategoryCreate, db: Session = Depends(get_db)):
+    db_category = models.Category(**category.model_dump(), user_id=1)
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
     return db_category
 
 @app.get("/categories/", response_model=List[schemas.Category])
-def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     categories = db.query(models.Category).filter(
-        (models.Category.user_id == current_user.id) | (models.Category.user_id == None)
+        (models.Category.user_id == 1) | (models.Category.user_id == None)
     ).offset(skip).limit(limit).all()
     return categories
 
 # --- Transactions ---
 @app.post("/transactions/", response_model=schemas.Transaction)
-def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    db_transaction = models.Transaction(**transaction.model_dump(), user_id=current_user.id)
+def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
+    db_transaction = models.Transaction(**transaction.model_dump(), user_id=1)
     db.add(db_transaction)
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
 
 @app.get("/transactions/", response_model=List[schemas.Transaction])
-def read_transactions(skip: int = 0, limit: int = 1000, start_date: str = None, end_date: str = None, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    query = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id)
+def read_transactions(skip: int = 0, limit: int = 1000, start_date: str = None, end_date: str = None, db: Session = Depends(get_db)):
+    query = db.query(models.Transaction).filter(models.Transaction.user_id == 1)
     if start_date:
         query = query.filter(models.Transaction.date >= start_date)
     if end_date:
@@ -179,9 +176,9 @@ def parse_nlp(nlp_input: schemas.NLPInput):
     return parsed_transactions
 
 @app.post("/transactions/nlp/", response_model=List[schemas.Transaction])
-def create_transaction_from_nlp(nlp_input: schemas.NLPInput, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+def create_transaction_from_nlp(nlp_input: schemas.NLPInput, db: Session = Depends(get_db)):
     # Get existing categories to help NLP model
-    existing_cats = db.query(models.Category).filter((models.Category.user_id == current_user.id) | (models.Category.user_id == None)).all()
+    existing_cats = db.query(models.Category).filter((models.Category.user_id == 1) | (models.Category.user_id == None)).all()
     cat_names = [c.name for c in existing_cats]
     
     # 1. Parse text using NLP
@@ -197,12 +194,12 @@ def create_transaction_from_nlp(nlp_input: schemas.NLPInput, db: Session = Depen
         category_name = parsed_data.get("category", "Lainnya")
         category = db.query(models.Category).filter(
             models.Category.name == category_name,
-            ((models.Category.user_id == current_user.id) | (models.Category.user_id == None))
+            ((models.Category.user_id == 1) | (models.Category.user_id == None))
         ).first()
         
         if not category:
             # Create default category if not exists
-            category = models.Category(name=category_name, type=parsed_data.get("type", "expense"), user_id=current_user.id)
+            category = models.Category(name=category_name, type=parsed_data.get("type", "expense"), user_id=1)
             db.add(category)
             db.commit()
             db.refresh(category)
@@ -217,7 +214,7 @@ def create_transaction_from_nlp(nlp_input: schemas.NLPInput, db: Session = Depen
             category_id=category.id
         )
         
-        db_transaction = models.Transaction(**transaction_data.model_dump(), user_id=current_user.id)
+        db_transaction = models.Transaction(**transaction_data.model_dump(), user_id=1)
         db.add(db_transaction)
         db.commit()
         db.refresh(db_transaction)
@@ -227,10 +224,10 @@ def create_transaction_from_nlp(nlp_input: schemas.NLPInput, db: Session = Depen
     return created_transactions
 
 @app.delete("/transactions/{transaction_id}")
-def delete_transaction(transaction_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
     db_transaction = db.query(models.Transaction).filter(
         models.Transaction.id == transaction_id,
-        models.Transaction.user_id == current_user.id
+        models.Transaction.user_id == 1
     ).first()
     if not db_transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -240,10 +237,10 @@ def delete_transaction(transaction_id: int, db: Session = Depends(get_db), curre
     return {"message": "Transaction deleted successfully"}
 
 @app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
-def update_transaction(transaction_id: int, transaction: schemas.TransactionCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+def update_transaction(transaction_id: int, transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
     db_transaction = db.query(models.Transaction).filter(
         models.Transaction.id == transaction_id,
-        models.Transaction.user_id == current_user.id
+        models.Transaction.user_id == 1
     ).first()
     if not db_transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")

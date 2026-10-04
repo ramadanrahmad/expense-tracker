@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Expense AI',
-        short_name: 'Expense AI',
+        name: 'Moneta',
+        short_name: 'Moneta',
         description: 'AI-powered Personal Finance Tracker',
         theme_color: '#0f172a',
         background_color: '#0f172a',

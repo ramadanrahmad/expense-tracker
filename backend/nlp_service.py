@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -56,8 +56,8 @@ def parse_text_to_transaction(text: str, existing_categories: List[str] = None) 
 
 def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = None) -> List[dict]:
     client = genai.Client(api_key=api_key)
-    today_date = datetime.now()
-    today_str = today_date.strftime("%Y-%m-%dT%H:%M:%S")
+    today_date = datetime.now(timezone.utc)
+    today_str = today_date.strftime("%Y-%m-%dT%H:%M:%SZ")
     
     cat_str = ", ".join(existing_categories) if existing_categories else "Makanan & Minuman, Transportasi, Belanja, Tagihan & Utilitas, Kesehatan, Hiburan, Gaji, Uang Saku"
     
@@ -102,12 +102,13 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
     result = []
     for tx in data.get("transactions", []):
         try:
-            dt_obj = datetime.strptime(tx["date"], "%Y-%m-%dT%H:%M:%S")
+            clean_date = tx["date"].replace("Z", "")
+            dt_obj = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
         except ValueError:
             dt_obj = today_date
             
         result.append({
-            "date": dt_obj,
+            "date": dt_obj.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "amount": tx["amount"],
             "category": tx["category"],
             "type": tx["type"],
@@ -119,7 +120,7 @@ def _parse_with_regex(text: str) -> dict:
     text = text.lower()
     
     # Extract Date
-    date = datetime.now()
+    date = datetime.now(timezone.utc)
     if "kemarin" in text or "h-1" in text or "1 hari yang lalu" in text:
         date = date - timedelta(days=1)
         
@@ -202,7 +203,7 @@ def _parse_with_regex(text: str) -> dict:
                 break
 
     return {
-        "date": date,
+        "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "amount": amount,
         "category": category,
         "type": tx_type,

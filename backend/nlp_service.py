@@ -78,11 +78,14 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
        - Jika teks mengisyaratkan "mengurangi", "membeli", "membayar", "makan", "jajan" (menghabiskan uang), atau mengeluarkan uang, set `type` menjadi "expense". Jika teks membingungkan, asumsikan sebagai "expense" kecuali ada kata-kata pemasukan.
     5. PENCOCOKAN KATEGORI: Jika `type` adalah "income", Kategori HARUS berupa kategori pemasukan (contoh: "Uang Saku", "Gaji", "Bonus"). JANGAN PERNAH menempatkan "income" ke dalam kategori pengeluaran seperti "Makanan & Minuman" atau "Belanja", meskipun ada kata "jajan".
     6. ANALISIS KONTEKS MENDALAM (PENTING!):
-       - Pahami ALIRAN UANG. Jika orang lain membayar ke user ("Andi bayar utang ke saya 50 ribu"), itu Pemasukan (income). Jika user membayar ke orang lain ("Saya bayar utang ke Andi 50 ribu"), itu Pengeluaran (expense).
-       - Kehilangan uang ("hilang", "kecopetan", "jatuh") = Pengeluaran (expense).
-       - Menemukan uang ("nemu uang", "dapat undian") = Pemasukan (income).
-       - Pernyataan kepemilikan ("punya uang", "punya uang saya", "uangku sisa", "tabungan saya") MUTLAK = Pemasukan (income).
-       - Jika ada beberapa konteks berlawanan dalam satu kalimat (misal: "Gaji 5 juta tapi langsung bayar kos 1 juta"), PECAH menjadi 2 transaksi: Gaji (income) 5 juta, dan Bayar Kos (expense) 1 juta.
+       - REIMBURSEMENT/PIUTANG DIBAYAR: Jika seseorang mengembalikan uang (contoh: "Budi balikin duit 50 ribu buat beli bakso"), ini = PEMASUKAN (income). Abaikan kata "beli bakso".
+       - REFUND/BATAL BELI: Jika pembelian dibatalkan dan uang kembali ("Batal beli sepatu, uang balik"), ini = PEMASUKAN (income).
+       - RENCANA BELUM TERJADI: Jika kalimat berisi rencana ("Jual HP laku 2 juta buat beli motor besok"), catat HANYA yang SUDAH TERJADI (Pemasukan 2 juta). Abaikan rencana pembelian yang belum terjadi.
+       - TRANSFER PRIBADI: Memindahkan uang milik sendiri ("Pindah 100 ribu dari BCA ke Gopay") BUKAN pemasukan/pengeluaran riil. ABAIKAN transaksi ini (jangan dicatat/kembalikan array kosong).
+       - SARKASME/MAJAS: Pahami bahasa kiasan. "Makan siang merampok dompet 500 ribu" = Pengeluaran makan. "Tiketnya bikin miskin" = Pengeluaran tiket.
+       - PERNYATAAN KEPEMILIKAN: "punya uang", "uang saya", "uangku sisa", "tabungan saya" = MUTLAK Pemasukan (income).
+       - BANYAK TRANSAKSI: "Gaji 5 juta tapi bayar kos 1 juta", PECAH jadi 2: Gaji (income) 5jt, dan Kos (expense) 1jt.
+       - Pahami ALIRAN UANG: Kehilangan uang = Pengeluaran. Menemukan uang = Pemasukan.
     
     Teks input: "{text}"
     """

@@ -38,7 +38,8 @@ function App() {
   const [targetInput, setTargetInput] = useState('');
 
   const saveTarget = () => {
-    const val = Number(targetInput) || 0;
+    const rawValue = String(targetInput).replace(/\D/g, '');
+    const val = Number(rawValue) || 0;
     setTargetIncome(val);
     localStorage.setItem('targetIncome', val);
     setIsEditingTarget(false);
@@ -307,11 +308,15 @@ function App() {
             </h3>
             {isEditingTarget ? (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                   <input type="number" className="input-field" placeholder="Nominal" value={targetInput} onChange={e => setTargetInput(e.target.value)} style={{ padding: '0.25rem 0.5rem', width: '120px', margin: 0 }} />
+                   <input type="text" className="input-field" placeholder="Nominal" value={targetInput} onChange={e => {
+                     const rawValue = e.target.value.replace(/\D/g, '');
+                     const formattedValue = rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '';
+                     setTargetInput(formattedValue);
+                   }} style={{ padding: '0.25rem 0.5rem', width: '120px', margin: 0 }} />
                    <button className="btn btn-primary" onClick={saveTarget} style={{ padding: '0.25rem 0.5rem' }}>Simpan</button>
                 </div>
             ) : (
-                <button className="btn-icon" onClick={() => {setIsEditingTarget(true); setTargetInput(targetIncome);}} style={{ padding: '0.25rem' }}>
+                <button className="btn-icon" onClick={() => {setIsEditingTarget(true); setTargetInput(targetIncome ? targetIncome.toLocaleString('id-ID') : '');}} style={{ padding: '0.25rem' }}>
                    <Edit2 size={16} />
                 </button>
             )}

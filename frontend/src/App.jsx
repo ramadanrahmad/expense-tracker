@@ -276,7 +276,7 @@ function App() {
       <section className="glass card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
           <p className="text-muted">{filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}</p>
-          <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{formatRupiah(transactions.reduce((acc, curr) => curr.transaction_type === 'income' ? acc + curr.amount : acc - curr.amount, 0))}</h2>
+          <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{formatRupiah(balance.total)}</h2>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

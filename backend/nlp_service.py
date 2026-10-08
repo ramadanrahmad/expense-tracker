@@ -81,6 +81,7 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
        - Pahami ALIRAN UANG. Jika orang lain membayar ke user ("Andi bayar utang ke saya 50 ribu"), itu Pemasukan (income). Jika user membayar ke orang lain ("Saya bayar utang ke Andi 50 ribu"), itu Pengeluaran (expense).
        - Kehilangan uang ("hilang", "kecopetan", "jatuh") = Pengeluaran (expense).
        - Menemukan uang ("nemu uang", "dapat undian") = Pemasukan (income).
+       - Pernyataan kepemilikan ("punya uang", "punya uang saya", "uangku sisa", "tabungan saya") MUTLAK = Pemasukan (income).
        - Jika ada beberapa konteks berlawanan dalam satu kalimat (misal: "Gaji 5 juta tapi langsung bayar kos 1 juta"), PECAH menjadi 2 transaksi: Gaji (income) 5 juta, dan Bayar Kos (expense) 1 juta.
     
     Teks input: "{text}"
@@ -160,7 +161,7 @@ def _parse_with_regex(text: str) -> dict:
         
     # 1. Determine tx_type FIRST
     tx_type = "expense"
-    if any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih", "uang saya", "saldo", "sisa", "ada uang"]):
+    if any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih", "uang saya", "punya uang", "saldo", "sisa", "ada uang", "tabungan"]):
         tx_type = "income"
     if any(word in text for word in ["mengurangi", "keluar", "bayar", "beli"]):
         tx_type = "expense"

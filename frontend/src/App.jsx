@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Bot, WalletCards, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, PieChart as PieChartIcon, PenTool, Filter, Target, Edit2 } from 'lucide-react';
+import { 
+  Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
+  PieChart as PieChartIcon, PenTool, Filter, Target, Edit2, Check
+} from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:8000` : 'http://localhost:8000');
+const COLORS = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
 
 function App() {
-  // LocalStorage Initializers
+  // LocalStorage Initializers - Exact Original State
   const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('transactions')) || []);
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('categories')) || [
-    {id: 1, name: 'Makanan & Minuman', type: 'expense'},
-    {id: 2, name: 'Transportasi', type: 'expense'},
-    {id: 3, name: 'Gaji', type: 'income'},
-    {id: 4, name: 'Lainnya', type: 'expense'}
+    { id: 1, name: 'Makanan & Minuman', type: 'expense' },
+    { id: 2, name: 'Transportasi', type: 'expense' },
+    { id: 3, name: 'Gaji', type: 'income' },
+    { id: 4, name: 'Lainnya', type: 'expense' }
   ]);
   
   const [filteredTransactions, setFilteredTransactions] = useState([]);
@@ -67,7 +70,7 @@ function App() {
     localStorage.setItem('categories', JSON.stringify(categories));
   }, [categories]);
 
-  // Process data for UI based on filters
+  // Process data for UI based on filters (Exact Original Logic)
   useEffect(() => {
     let filtered = [...transactions];
     const today = new Date();
@@ -75,7 +78,7 @@ function App() {
     if (filterType === '7days') {
       const past = new Date(today);
       past.setDate(today.getDate() - 6);
-      past.setHours(0,0,0,0);
+      past.setHours(0, 0, 0, 0);
       filtered = filtered.filter(t => new Date(t.date) >= past);
     } else if (filterType === 'month') {
       const start = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -110,11 +113,10 @@ function App() {
     const isYearly = filterType === 'year';
 
     filtered.forEach(t => {
-      // Balance
-      if (t.transaction_type === 'income') inc += t.amount;
-      else exp += t.amount;
+      const amt = Number(t.amount) || 0;
+      if (t.transaction_type === 'income') inc += amt;
+      else exp += amt;
 
-      // Bar Chart (Time)
       const dateObj = new Date(t.date);
       let key = '';
       if (isYearly) {
@@ -124,15 +126,14 @@ function App() {
       }
 
       if (!groupedBy[key]) groupedBy[key] = { name: key, income: 0, expense: 0, rawDate: dateObj.getTime() };
-      if (t.transaction_type === 'income') groupedBy[key].income += t.amount;
-      else groupedBy[key].expense += t.amount;
+      if (t.transaction_type === 'income') groupedBy[key].income += amt;
+      else groupedBy[key].expense += amt;
       
-      // Pie Chart (Category)
       const catName = t.category?.name || 'Lainnya';
       if (t.transaction_type === 'income') {
-        incByCategory[catName] = (incByCategory[catName] || 0) + t.amount;
+        incByCategory[catName] = (incByCategory[catName] || 0) + amt;
       } else {
-        expByCategory[catName] = (expByCategory[catName] || 0) + t.amount;
+        expByCategory[catName] = (expByCategory[catName] || 0) + amt;
       }
     });
 
@@ -141,8 +142,8 @@ function App() {
     const cData = Object.values(groupedBy).sort((a, b) => a.rawDate - b.rawDate);
     setChartData(cData);
     
-    setExpenseCatData(Object.keys(expByCategory).map(k => ({ name: k, value: expByCategory[k] })).sort((a,b)=>b.value-a.value));
-    setIncomeCatData(Object.keys(incByCategory).map(k => ({ name: k, value: incByCategory[k] })).sort((a,b)=>b.value-a.value));
+    setExpenseCatData(Object.keys(expByCategory).map(k => ({ name: k, value: expByCategory[k] })).sort((a, b) => b.value - a.value));
+    setIncomeCatData(Object.keys(incByCategory).map(k => ({ name: k, value: incByCategory[k] })).sort((a, b) => b.value - a.value));
 
   }, [transactions, filterType, customRange]);
 
@@ -152,15 +153,13 @@ function App() {
     
     setIsSubmitting(true);
     try {
-      // Offline mode: We hit the new /parse-nlp endpoint which just returns JSON
       const res = await axios.post(`${API_URL}/parse-nlp`, { text: nlpInput });
-      const parsedDataList = res.data; // Expected to be an array of parsed transactions
+      const parsedDataList = res.data;
 
       const newTransactions = [];
       let currentCategories = [...categories];
 
       parsedDataList.forEach(parsed => {
-        // Ensure category exists
         const catName = parsed.category || "Lainnya";
         const catType = parsed.type || "expense";
         
@@ -186,7 +185,7 @@ function App() {
       setNlpInput('');
       
     } catch (error) {
-      alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi internet aktif untuk memanggil AI.");
+      alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi backend aktif.");
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -217,11 +216,11 @@ function App() {
     };
 
     setTransactions([...transactions, newTx]);
-    setManualForm({...manualForm, amount: '', description: '', isNewCategory: false});
+    setManualForm({ ...manualForm, amount: '', description: '', isNewCategory: false });
   };
 
   const handleDelete = (id) => {
-    if(!window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
+    if (!window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
     setTransactions(transactions.filter(t => t.id !== id));
   };
 
@@ -233,129 +232,194 @@ function App() {
     }).format(number || 0);
   };
 
-
-
   return (
-    <div className="container animate-slide-up">
-      {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <img src="/moneta-logo-transparent.png" alt="Moneta Logo" style={{ width: '180px' }} />
+    <div className="container">
+      {/* Header - Minimalist Image 2 Aesthetic */}
+      <header className="app-header">
+        <div className="brand-badge">
+          <div className="brand-icon-box">M</div>
+          <div>
+            <h1 className="brand-title">MONETA</h1>
+            <p className="brand-sub">Finance App</p>
+          </div>
+        </div>
+        <div className="header-date-badge">
+          {new Date().toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
         </div>
       </header>
 
-      {/* Filter Section */}
-      <section className="glass card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Filter size={18} className="text-muted" />
-          <h3 style={{ fontSize: '1rem' }}>Filter Waktu</h3>
+      {/* Filter Waktu Section */}
+      <section className="minimal-card" style={{ padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Filter size={15} style={{ color: 'var(--text-muted)' }} />
+            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>Filter Waktu</h3>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--accent-purple)', fontWeight: 600 }}>
+            {filterType === 'all' ? 'Semua Waktu' : filterType === '7days' ? '7 Hari Terakhir' : filterType === 'month' ? 'Bulan Ini' : filterType === 'year' ? 'Tahun Ini' : 'Periode Kustom'}
+          </span>
         </div>
         
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setFilterType(filterType === '7days' ? 'all' : '7days')} className={`btn ${filterType === '7days' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Minggu</button>
-          <button onClick={() => setFilterType(filterType === 'month' ? 'all' : 'month')} className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Bulan</button>
-          <button onClick={() => setFilterType(filterType === 'year' ? 'all' : 'year')} className={`btn ${filterType === 'year' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Tahun</button>
-          <button onClick={() => setFilterType(filterType === 'custom' ? 'all' : 'custom')} className={`btn ${filterType === 'custom' ? 'btn-primary' : 'btn-icon'}`} style={{flex: 1, borderRadius: 'var(--radius-sm)'}}>Periode</button>
+        <div className="filter-bar">
+          <button 
+            onClick={() => setFilterType(filterType === '7days' ? 'all' : '7days')} 
+            className={`filter-btn ${filterType === '7days' ? 'active' : ''}`}
+          >
+            Minggu
+          </button>
+          <button 
+            onClick={() => setFilterType(filterType === 'month' ? 'all' : 'month')} 
+            className={`filter-btn ${filterType === 'month' ? 'active' : ''}`}
+          >
+            Bulan
+          </button>
+          <button 
+            onClick={() => setFilterType(filterType === 'year' ? 'all' : 'year')} 
+            className={`filter-btn ${filterType === 'year' ? 'active' : ''}`}
+          >
+            Tahun
+          </button>
+          <button 
+            onClick={() => setFilterType(filterType === 'custom' ? 'all' : 'custom')} 
+            className={`filter-btn ${filterType === 'custom' ? 'active' : ''}`}
+          >
+            Periode
+          </button>
         </div>
 
         {filterType === 'custom' && (
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-            <div className="input-group" style={{ flex: 1, margin: 0 }}>
-              <label>Dari Tanggal</label>
-              <input type="date" className="input-field" value={customRange.start} onChange={(e) => setCustomRange({...customRange, start: e.target.value})} />
+          <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <div style={{ flex: 1 }}>
+              <label className="input-label">Dari Tanggal</label>
+              <input 
+                type="date" 
+                className="minimal-input" 
+                value={customRange.start} 
+                onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })} 
+              />
             </div>
-            <div className="input-group" style={{ flex: 1, margin: 0 }}>
-              <label>Sampai Tanggal</label>
-              <input type="date" className="input-field" value={customRange.end} onChange={(e) => setCustomRange({...customRange, end: e.target.value})} />
+            <div style={{ flex: 1 }}>
+              <label className="input-label">Sampai Tanggal</label>
+              <input 
+                type="date" 
+                className="minimal-input" 
+                value={customRange.end} 
+                onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })} 
+              />
             </div>
           </div>
         )}
       </section>
 
-      {/* Balance Card */}
-      <section className="glass card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Balance Card - Styled cleanly like Image 2 */}
+      <section className="balance-card">
         <div>
-          <p className="text-muted">{filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}</p>
-          <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{formatRupiah(balance.total)}</h2>
+          <span className="balance-label">
+            {filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}
+          </span>
+          <div className="balance-amount">{formatRupiah(balance.total)}</div>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: '50%', color: 'var(--success)' }}>
-              <ArrowUpRight size={20} />
+
+        <div className="balance-breakdown-row">
+          <div className="breakdown-item">
+            <div className="breakdown-icon income">
+              <ArrowUpRight size={18} strokeWidth={2.2} />
             </div>
             <div>
-              <p className="text-muted" style={{ fontSize: '0.75rem' }}>Pemasukan</p>
-              <p style={{ fontWeight: 600 }}>{formatRupiah(balance.income)}</p>
+              <p className="breakdown-label">Pemasukan</p>
+              <p className="breakdown-val" style={{ color: 'var(--success)' }}>+{formatRupiah(balance.income)}</p>
             </div>
           </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '50%', color: 'var(--danger)' }}>
-              <ArrowDownRight size={20} />
+          <div style={{ width: '1px', height: '28px', background: 'var(--border-light)' }}></div>
+          <div className="breakdown-item" style={{ justifyContent: 'flex-end', textAlign: 'right' }}>
+            <div style={{ textAlign: 'right' }}>
+              <p className="breakdown-label">Pengeluaran</p>
+              <p className="breakdown-val" style={{ color: 'var(--text-main)' }}>-{formatRupiah(balance.expense)}</p>
             </div>
-            <div>
-              <p className="text-muted" style={{ fontSize: '0.75rem' }}>Pengeluaran</p>
-              <p style={{ fontWeight: 600 }}>{formatRupiah(balance.expense)}</p>
+            <div className="breakdown-icon expense">
+              <ArrowDownRight size={18} strokeWidth={2.2} />
             </div>
           </div>
         </div>
       </section>
 
       {/* Target Pemasukan Card */}
-      <section className="glass card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Target size={18} className="text-success" style={{ color: 'var(--success)' }} /> Target Pemasukan
-            </h3>
-            {isEditingTarget ? (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                   <input type="text" className="input-field" placeholder="Nominal" value={targetInput} onChange={e => {
-                     const rawValue = e.target.value.replace(/\D/g, '');
-                     const formattedValue = rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '';
-                     setTargetInput(formattedValue);
-                   }} style={{ padding: '0.25rem 0.5rem', width: '120px', margin: 0 }} />
-                   <button className="btn btn-primary" onClick={saveTarget} style={{ padding: '0.25rem 0.5rem' }}>Simpan</button>
-                </div>
-            ) : (
-                <button className="btn-icon" onClick={() => {setIsEditingTarget(true); setTargetInput(targetIncome ? targetIncome.toLocaleString('id-ID') : '');}} style={{ padding: '0.25rem' }}>
-                   <Edit2 size={16} />
-                </button>
-            )}
-         </div>
-         
-         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-            <span className="text-muted">Tercapai: <strong style={{ color: 'var(--text-primary)' }}>{formatRupiah(balance.income)}</strong></span>
-            <span className="text-muted">Target: <strong style={{ color: 'var(--text-primary)' }}>{formatRupiah(targetIncome)}</strong></span>
-         </div>
-         
-         {/* Progress Bar */}
-         <div style={{ width: '100%', height: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', overflow: 'hidden' }}>
-            <div style={{ 
-               width: `${Math.min(targetPercentage, 100)}%`, 
-               height: '100%', 
-               background: targetPercentage >= 100 ? 'var(--success)' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-               transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
-               boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.2)'
-            }}></div>
-         </div>
-         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-             <span style={{ color: 'var(--text-secondary)' }}>Progres: {targetPercentage.toFixed(1)}%</span>
-             {targetPercentage >= 100 && targetIncome > 0 && <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>🎉 Target Tercapai!</span>}
-         </div>
+      <section className="minimal-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h3 style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
+            <Target size={16} style={{ color: 'var(--accent-purple)' }} /> Target Pemasukan
+          </h3>
+          {isEditingTarget ? (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input 
+                type="text" 
+                className="minimal-input" 
+                placeholder="Nominal" 
+                value={targetInput} 
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/\D/g, '');
+                  const formattedValue = rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '';
+                  setTargetInput(formattedValue);
+                }} 
+                style={{ padding: '4px 8px', width: '110px', fontSize: '12px' }} 
+              />
+              <button 
+                className="btn-primary" 
+                onClick={saveTarget} 
+                style={{ padding: '4px 10px', width: 'auto', fontSize: '11px', borderRadius: '8px' }}
+              >
+                Simpan
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => { setIsEditingTarget(true); setTargetInput(targetIncome ? targetIncome.toLocaleString('id-ID') : ''); }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              title="Edit Target"
+            >
+              <Edit2 size={15} />
+            </button>
+          )}
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+          <span>Tercapai: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(balance.income)}</strong></span>
+          <span>Target: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(targetIncome)}</strong></span>
+        </div>
+        
+        {/* Progress Bar (Image 2 Style) */}
+        <div className="progress-track">
+          <div 
+            className={`progress-fill ${targetPercentage >= 100 ? 'success' : ''}`}
+            style={{ width: `${Math.min(targetPercentage, 100)}%` }}
+          ></div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+          <span>Progres: {targetPercentage.toFixed(1)}%</span>
+          {targetPercentage >= 100 && targetIncome > 0 && (
+            <span style={{ color: 'var(--success)', fontWeight: 700 }}>🎉 Target Tercapai!</span>
+          )}
+        </div>
       </section>
 
       {/* Bar Chart Section */}
       {chartData.length > 0 && (
-        <section className="glass card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <BarChart2 size={18} className="text-muted" /> Arus Kas
+        <section className="minimal-card">
+          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <BarChart2 size={16} style={{ color: 'var(--text-muted)' }} /> Arus Kas
           </h3>
-          <div style={{ height: '200px', width: '100%' }}>
+          <div style={{ height: '190px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }} formatter={(value) => formatRupiah(value)} />
+              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(0,0,0,0.03)' }} 
+                  contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '11px' }} 
+                  formatter={(value) => formatRupiah(value)} 
+                />
                 <Bar dataKey="income" fill="var(--success)" radius={[4, 4, 0, 0]} name="Pemasukan" />
-                <Bar dataKey="expense" fill="var(--danger)" radius={[4, 4, 0, 0]} name="Pengeluaran" />
+                <Bar dataKey="expense" fill="var(--accent-black)" radius={[4, 4, 0, 0]} name="Pengeluaran" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -364,90 +428,102 @@ function App() {
 
       {/* Pie Chart Section */}
       {(expenseCatData.length > 0 || incomeCatData.length > 0) && (
-        <section className="glass card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <PieChartIcon size={18} className="text-muted" /> Rincian Kategori
+        <section className="minimal-card">
+          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <PieChartIcon size={16} style={{ color: 'var(--text-muted)' }} /> Rincian Kategori
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {expenseCatData.length > 0 && (
               <div>
-                 <h4 style={{fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '0.5rem'}}>Komposisi Pengeluaran</h4>
-                 <div style={{ height: '200px', width: '100%' }}>
-                   <ResponsiveContainer width="100%" height="100%">
-                     <PieChart>
-                       <Pie data={expenseCatData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                         {expenseCatData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                       </Pie>
-                       <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
-                       <Legend wrapperStyle={{ fontSize: '12px' }} />
-                     </PieChart>
-                   </ResponsiveContainer>
-                 </div>
+                <h4 style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '6px', fontWeight: 600 }}>
+                  Komposisi Pengeluaran
+                </h4>
+                <div style={{ height: '180px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={expenseCatData} innerRadius={50} outerRadius={70} paddingAngle={4} dataKey="value">
+                        {expenseCatData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '11px' }} />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             )}
             
             {incomeCatData.length > 0 && (
               <div>
-                 <h4 style={{fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '0.5rem'}}>Sumber Pemasukan</h4>
-                 <div style={{ height: '200px', width: '100%' }}>
-                   <ResponsiveContainer width="100%" height="100%">
-                     <PieChart>
-                       <Pie data={incomeCatData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                         {incomeCatData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                       </Pie>
-                       <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
-                       <Legend wrapperStyle={{ fontSize: '12px' }} />
-                     </PieChart>
-                   </ResponsiveContainer>
-                 </div>
+                <h4 style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '6px', fontWeight: 600 }}>
+                  Sumber Pemasukan
+                </h4>
+                <div style={{ height: '180px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={incomeCatData} innerRadius={50} outerRadius={70} paddingAngle={4} dataKey="value">
+                        {incomeCatData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '11px' }} />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             )}
           </div>
         </section>
       )}
 
-      {/* Input Section */}
-      <section className="glass card" style={{ padding: '0' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)' }}>
+      {/* Input Section - AI vs Manual */}
+      <section className="minimal-card">
+        <div className="tab-switch">
           <button 
+            type="button"
             onClick={() => setActiveTab('ai')}
-            style={{ flex: 1, padding: '1rem', background: 'none', border: 'none', color: activeTab === 'ai' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'ai' ? 600 : 400, cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}
+            className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
           >
-            <Bot size={18} /> AI Input
+            <Bot size={16} /> AI Input
           </button>
           <button 
+            type="button"
             onClick={() => setActiveTab('manual')}
-            style={{ flex: 1, padding: '1rem', background: 'none', border: 'none', color: activeTab === 'manual' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'manual' ? 600 : 400, cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}
+            className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
           >
-            <PenTool size={18} /> Manual Input
+            <PenTool size={16} /> Manual Input
           </button>
         </div>
 
-        <div style={{ padding: '1.5rem' }}>
+        <div>
           {activeTab === 'ai' ? (
-            <form onSubmit={handleNlpSubmit}>
-              <div className="input-group" style={{ marginBottom: '1rem' }}>
+            <form onSubmit={handleNlpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
                 <input 
                   type="text" 
-                  className="input-field" 
+                  className="minimal-input" 
                   placeholder='Cth: "Makan siang 50 ribu, dapet transferan 1 juta"'
                   value={nlpInput}
                   onChange={(e) => setNlpInput(e.target.value)}
                   disabled={isSubmitting}
                 />
-                <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Ketikkan cerita transaksi Anda, AI akan memecahnya secara otomatis.</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  Ketikkan cerita transaksi Anda, AI akan memecahnya secara otomatis.
+                </p>
               </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isSubmitting || !nlpInput}>
+              <button type="submit" className="btn-primary" disabled={isSubmitting || !nlpInput.trim()}>
                 {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div className="input-group" style={{ flex: 1, margin: 0 }}>
-                  <label>Jenis</label>
+            <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="input-label">Jenis</label>
                   <select 
-                    className="input-field" 
+                    className="minimal-input" 
                     value={manualForm.transaction_type} 
                     onChange={(e) => {
                       const newType = e.target.value;
@@ -464,26 +540,31 @@ function App() {
                     <option value="income">Pemasukan</option>
                   </select>
                 </div>
-                <div className="input-group" style={{ flex: 1, margin: 0 }}>
-                  <label>Tanggal & Jam</label>
-                  <input type="datetime-local" className="input-field" value={manualForm.date} onChange={(e) => setManualForm({...manualForm, date: e.target.value})} />
+                <div style={{ flex: 1 }}>
+                  <label className="input-label">Tanggal & Jam</label>
+                  <input 
+                    type="datetime-local" 
+                    className="minimal-input" 
+                    value={manualForm.date} 
+                    onChange={(e) => setManualForm({ ...manualForm, date: e.target.value })} 
+                  />
                 </div>
               </div>
               
-              <div className="input-group" style={{ margin: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={{ margin: 0 }}>Kategori</label>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Kategori</label>
                   <button 
                     type="button"
                     onClick={() => {
                       if (manualForm.isNewCategory) {
                         const filtered = categories.filter(c => c.type === manualForm.transaction_type);
-                        setManualForm({...manualForm, isNewCategory: false, category_name: filtered.length > 0 ? filtered[0].name : ''});
+                        setManualForm({ ...manualForm, isNewCategory: false, category_name: filtered.length > 0 ? filtered[0].name : '' });
                       } else {
-                        setManualForm({...manualForm, isNewCategory: true, category_name: ''});
+                        setManualForm({ ...manualForm, isNewCategory: true, category_name: '' });
                       }
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-purple)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
                   >
                     {manualForm.isNewCategory ? 'Batal Tambah' : '+ Kategori Baru'}
                   </button>
@@ -491,9 +572,9 @@ function App() {
                 
                 {!manualForm.isNewCategory ? (
                   <select 
-                    className="input-field" 
+                    className="minimal-input" 
                     value={manualForm.category_name} 
-                    onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})}
+                    onChange={(e) => setManualForm({ ...manualForm, category_name: e.target.value })}
                   >
                     {categories.filter(c => c.type === manualForm.transaction_type).map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
@@ -502,48 +583,48 @@ function App() {
                 ) : (
                   <input 
                     type="text" 
-                    className="input-field" 
+                    className="minimal-input" 
                     placeholder="Ketik nama kategori baru..." 
                     value={manualForm.category_name} 
-                    onChange={(e) => setManualForm({...manualForm, category_name: e.target.value})} 
+                    onChange={(e) => setManualForm({ ...manualForm, category_name: e.target.value })} 
                     required 
                   />
                 )}
               </div>
 
-              <div className="input-group" style={{ margin: 0 }}>
-                <label>Nominal (Rp)</label>
+              <div>
+                <label className="input-label">Nominal (Rp)</label>
                 <input 
                   type="text" 
                   inputMode="numeric"
-                  className="input-field" 
+                  className="minimal-input" 
                   placeholder="0" 
                   value={manualForm.amount} 
                   onChange={(e) => {
                     const rawValue = e.target.value.replace(/\D/g, '');
                     if (!rawValue) {
-                      setManualForm({...manualForm, amount: ''});
+                      setManualForm({ ...manualForm, amount: '' });
                       return;
                     }
                     const formattedValue = new Intl.NumberFormat('id-ID').format(rawValue);
-                    setManualForm({...manualForm, amount: formattedValue});
+                    setManualForm({ ...manualForm, amount: formattedValue });
                   }} 
                   required 
                 />
               </div>
 
-              <div className="input-group" style={{ margin: 0 }}>
-                <label>Deskripsi (Opsional)</label>
+              <div>
+                <label className="input-label">Deskripsi (Opsional)</label>
                 <input 
                   type="text" 
-                  className="input-field" 
+                  className="minimal-input" 
                   placeholder="Catatan transaksi (opsional)..." 
                   value={manualForm.description} 
-                  onChange={(e) => setManualForm({...manualForm, description: e.target.value})} 
+                  onChange={(e) => setManualForm({ ...manualForm, description: e.target.value })} 
                 />
               </div>
               
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={isSubmitting}>
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>
                 Simpan Manual
               </button>
             </form>
@@ -551,16 +632,16 @@ function App() {
         </div>
       </section>
 
-      {/* Recent Transactions */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '2rem' }}>
-        <h3 style={{ fontSize: '1.25rem' }}>Riwayat Transaksi</h3>
+      {/* Riwayat Transaksi - Exact Grouping & Format */}
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Riwayat Transaksi</h3>
         
         {filteredTransactions.length === 0 ? (
-          <div className="glass card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <p className="text-muted">Belum ada transaksi di rentang waktu ini.</p>
+          <div className="minimal-card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+            Belum ada transaksi di rentang waktu ini.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {Object.entries(
               filteredTransactions.reduce((acc, tx) => {
                 const dateStr = new Date(tx.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -569,51 +650,36 @@ function App() {
                 return acc;
               }, {})
             ).map(([dateLabel, dailyTxs]) => (
-              <div key={dateLabel} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <h4 style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
-                  {dateLabel}
-                </h4>
+              <div key={dateLabel}>
+                <div className="tx-group-header">{dateLabel}</div>
                 {dailyTxs.map((tx) => (
-                  <div key={tx.id} className="glass card" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div style={{ 
-                        width: '40px', height: '40px', borderRadius: '50%', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        background: tx.transaction_type === 'income' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        color: tx.transaction_type === 'income' ? 'var(--success)' : 'var(--danger)'
-                      }}>
-                        {tx.transaction_type === 'income' ? <ArrowUpRight size={20}/> : <ArrowDownRight size={20}/>}
+                  <div key={tx.id} className="tx-card">
+                    <div className="tx-left">
+                      <div className={`tx-icon-squircle ${tx.transaction_type === 'income' ? 'income' : 'expense'}`}>
+                        {tx.transaction_type === 'income' ? <ArrowUpRight size={18} strokeWidth={2.2} /> : <ArrowDownRight size={18} strokeWidth={2.2} />}
                       </div>
-                      <div>
-                        <p style={{ fontWeight: 500, lineHeight: 1.2 }}>{tx.description}</p>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
-                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>{tx.category?.name || 'Lainnya'}</span>
-                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>•</span>
-                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                            {new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                      <div style={{ minWidth: 0 }}>
+                        <p className="tx-desc">{tx.description}</p>
+                        <div className="tx-meta">
+                          <span>{tx.category?.name || 'Lainnya'}</span>
+                          <span>•</span>
+                          <span>{new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                           {tx.input_method === 'nlp' ? (
-                             <>
-                               <span className="text-muted" style={{ fontSize: '0.75rem' }}>•</span>
-                               <Bot size={12} className="text-muted" title="Dicatat via AI" />
-                             </>
+                            <span className="badge-method ai" title="Dicatat via AI">AI</span>
                           ) : (
-                             <>
-                               <span className="text-muted" style={{ fontSize: '0.75rem' }}>•</span>
-                               <PenTool size={12} className="text-muted" title="Dicatat Manual" />
-                             </>
+                            <span className="badge-method" title="Dicatat Manual">Manual</span>
                           )}
                         </div>
                       </div>
                     </div>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                      <p style={{ fontWeight: 600, color: tx.transaction_type === 'income' ? 'var(--success)' : 'var(--text-primary)' }}>
+                    <div className="tx-right">
+                      <p className={`tx-amount ${tx.transaction_type}`}>
                         {tx.transaction_type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
                       </p>
                       <button 
                         onClick={() => handleDelete(tx.id)}
-                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px', opacity: 0.7 }}
+                        className="btn-delete"
                         title="Hapus"
                       >
                         <Trash2 size={16} />

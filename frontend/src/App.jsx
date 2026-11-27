@@ -41,14 +41,26 @@ function App() {
 
   // LocalStorage Initializers
   const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('transactions')) || []);
-  const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('categories')) || [
-    { id: 1, name: 'Makanan & Minuman', type: 'expense' },
-    { id: 2, name: 'Transportasi', type: 'expense' },
-    { id: 3, name: 'Gaji', type: 'income' },
-    { id: 4, name: 'Lainnya', type: 'expense' },
-    { id: 5, name: 'Bayar Pinjol', type: 'debt_payment' },
-    { id: 6, name: 'Tambah Pinjol', type: 'debt_add' }
-  ]);
+  const [categories, setCategories] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('categories'));
+    if (saved) {
+      return saved.map(c =>
+        c.name === 'Bayar Pinjol'
+          ? { ...c, name: 'Bayar Cicilan' }
+          : c.name === 'Tambah Pinjol'
+          ? { ...c, name: 'Tambah Cicilan' }
+          : c
+      );
+    }
+    return [
+      { id: 1, name: 'Makanan & Minuman', type: 'expense' },
+      { id: 2, name: 'Transportasi', type: 'expense' },
+      { id: 3, name: 'Gaji', type: 'income' },
+      { id: 4, name: 'Lainnya', type: 'expense' },
+      { id: 5, name: 'Bayar Cicilan', type: 'debt_payment' },
+      { id: 6, name: 'Tambah Cicilan', type: 'debt_add' }
+    ];
+  });
   
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [balance, setBalance] = useState({ total: 0, income: 0, expense: 0 });
@@ -66,11 +78,14 @@ function App() {
   const [filterType, setFilterType] = useState('all');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
-  // Pinjol State (1 Total Pinjol Gabungan)
-  const [initialPinjol, setInitialPinjol] = useState(() => Number(localStorage.getItem('initialPinjol')) || 0);
-  const [isEditingPinjol, setIsEditingPinjol] = useState(false);
-  const [pinjolInput, setPinjolInput] = useState('');
-  const pinjolCardRef = useRef(null);
+  // Cicilan / Tanggungan State (1 Total Gabungan)
+  const [initialCicilan, setInitialCicilan] = useState(() => {
+    const val = localStorage.getItem('initialCicilan') ?? localStorage.getItem('initialPinjol');
+    return Number(val) || 0;
+  });
+  const [isEditingCicilan, setIsEditingCicilan] = useState(false);
+  const [cicilanInput, setCicilanInput] = useState('');
+  const cicilanCardRef = useRef(null);
 
   const totalDebtAdd = transactions
     .filter(t => t.transaction_type === 'debt_add')
@@ -78,26 +93,26 @@ function App() {
   const totalDebtPaid = transactions
     .filter(t => t.transaction_type === 'debt_payment')
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const totalPinjol = Math.max(0, initialPinjol + totalDebtAdd - totalDebtPaid);
-  const netBalance = balance.total - totalPinjol;
+  const totalCicilan = Math.max(0, initialCicilan + totalDebtAdd - totalDebtPaid);
+  const netBalance = balance.total - totalCicilan;
 
-  const celebratePinjolUpdate = () => {
-    if (pinjolCardRef.current && SakugaFX) {
-      const c = SakugaFX.at(pinjolCardRef.current);
+  const celebrateCicilanUpdate = () => {
+    if (cicilanCardRef.current && SakugaFX) {
+      const c = SakugaFX.at(cicilanCardRef.current);
       SakugaFX.kira(c.x + c.w * 0.25, c.y - 14, { r: 13, life: 0.7 });
       SakugaFX.ticks(c.x, c.y - c.h / 2 - 4, { dir: -Math.PI / 2, n: 3, r: 4, len: 14, life: 0.45 });
     }
   };
 
-  const savePinjol = () => {
-    const rawValue = String(pinjolInput).replace(/\D/g, '');
+  const saveCicilan = () => {
+    const rawValue = String(cicilanInput).replace(/\D/g, '');
     const desiredTotal = Number(rawValue) || 0;
     const netDebtDelta = totalDebtAdd - totalDebtPaid;
     const nextInitial = desiredTotal - netDebtDelta;
-    setInitialPinjol(nextInitial);
-    localStorage.setItem('initialPinjol', String(nextInitial));
-    setIsEditingPinjol(false);
-    setTimeout(() => celebratePinjolUpdate(), 80);
+    setInitialCicilan(nextInitial);
+    localStorage.setItem('initialCicilan', String(nextInitial));
+    setIsEditingCicilan(false);
+    setTimeout(() => celebrateCicilanUpdate(), 80);
   };
 
   // Target State
@@ -195,7 +210,7 @@ function App() {
     filtered.forEach(t => {
       const amt = Number(t.amount) || 0;
       if (t.transaction_type === 'debt_add') {
-        // Penambahan nilai pinjol tidak menambah atau mengurangi Total Uang
+        // Penambahan nilai cicilan tidak menambah atau mengurangi Total Uang
         return;
       }
 
@@ -214,7 +229,7 @@ function App() {
       if (t.transaction_type === 'income') groupedBy[key].income += amt;
       else groupedBy[key].expense += amt;
       
-      const catName = t.category?.name || (t.transaction_type === 'debt_payment' ? 'Bayar Pinjol' : 'Lainnya');
+      const catName = t.category?.name || (t.transaction_type === 'debt_payment' ? 'Bayar Cicilan' : 'Lainnya');
       if (t.transaction_type === 'income') {
         incByCategory[catName] = (incByCategory[catName] || 0) + amt;
       } else {
@@ -252,20 +267,26 @@ function App() {
       const newTransactions = [];
       let currentCategories = [...categories];
 
-      let hasPinjolUpdate = false;
+      let hasCicilanUpdate = false;
       parsedDataList.forEach(parsed => {
         let catType = parsed.type || "expense";
         const rawCat = parsed.category || "";
-        if (catType === "expense" && rawCat.toLowerCase().includes("bayar pinjol")) {
+        const lowerCat = rawCat.toLowerCase();
+        if (catType === "expense" && (lowerCat.includes("bayar pinjol") || lowerCat.includes("bayar cicilan"))) {
           catType = "debt_payment";
-        } else if (rawCat.toLowerCase().includes("tambah pinjol")) {
+        } else if (lowerCat.includes("tambah pinjol") || lowerCat.includes("tambah cicilan")) {
           catType = "debt_add";
         }
         if (catType === "debt_payment" || catType === "debt_add") {
-          hasPinjolUpdate = true;
+          hasCicilanUpdate = true;
         }
-        const defaultCat = catType === "debt_payment" ? "Bayar Pinjol" : catType === "debt_add" ? "Tambah Pinjol" : "Lainnya";
-        const catName = rawCat || defaultCat;
+        const defaultCat = catType === "debt_payment" ? "Bayar Cicilan" : catType === "debt_add" ? "Tambah Cicilan" : "Lainnya";
+        const catName =
+          catType === "debt_payment" && lowerCat.includes("pinjol")
+            ? "Bayar Cicilan"
+            : catType === "debt_add" && lowerCat.includes("pinjol")
+            ? "Tambah Cicilan"
+            : rawCat || defaultCat;
         
         let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
         if (!category) {
@@ -288,7 +309,7 @@ function App() {
       setTransactions([...transactions, ...newTransactions]);
       setNlpInput('');
       celebrateBalanceUpdate();
-      if (hasPinjolUpdate) celebratePinjolUpdate();
+      if (hasCicilanUpdate) celebrateCicilanUpdate();
       
     } catch (error) {
       alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi backend aktif.");
@@ -313,9 +334,9 @@ function App() {
 
     const defaultDesc =
       manualForm.transaction_type === 'debt_payment'
-        ? 'Bayar Pinjol'
+        ? 'Bayar Cicilan'
         : manualForm.transaction_type === 'debt_add'
-        ? 'Tambah Pinjol'
+        ? 'Tambah Cicilan'
         : '-';
 
     const newTx = {
@@ -331,7 +352,7 @@ function App() {
     setTransactions([...transactions, newTx]);
     setManualForm({ ...manualForm, amount: '', description: '', isNewCategory: false });
     if (manualForm.transaction_type === 'debt_payment' || manualForm.transaction_type === 'debt_add') {
-      celebratePinjolUpdate();
+      celebrateCicilanUpdate();
     }
     if (manualForm.transaction_type !== 'debt_add') {
       celebrateBalanceUpdate();
@@ -342,10 +363,10 @@ function App() {
     const matched = categories.filter(c => c.type === manualForm.transaction_type);
     if (matched.length > 0) return matched;
     if (manualForm.transaction_type === 'debt_payment') {
-      return [{ id: 'default-debt-pay', name: 'Bayar Pinjol', type: 'debt_payment' }];
+      return [{ id: 'default-debt-pay', name: 'Bayar Cicilan', type: 'debt_payment' }];
     }
     if (manualForm.transaction_type === 'debt_add') {
-      return [{ id: 'default-debt-add', name: 'Tambah Pinjol', type: 'debt_add' }];
+      return [{ id: 'default-debt-add', name: 'Tambah Cicilan', type: 'debt_add' }];
     }
     return [];
   })();
@@ -497,30 +518,30 @@ function App() {
         </div>
       </section>
 
-      {/* Total Pinjol Card (1 Total Pinjol Gabungan) */}
-      <section ref={pinjolCardRef} className="minimal-card">
+      {/* Total Cicilan Card (1 Total Gabungan) */}
+      <section ref={cicilanCardRef} className="minimal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
           <h3 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-            <CreditCard size={15} style={{ color: 'var(--accent-manga)' }} /> Total Pinjol
+            <CreditCard size={15} style={{ color: 'var(--accent-manga)' }} /> Total Cicilan
           </h3>
-          {isEditingPinjol ? (
+          {isEditingCicilan ? (
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <SakugaInput
                 type="text"
                 className="minimal-input"
                 placeholder="Nominal"
-                value={pinjolInput}
+                value={cicilanInput}
                 onChange={e => {
                   const rawValue = e.target.value.replace(/\D/g, '');
                   const formattedValue = rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '';
-                  setPinjolInput(formattedValue);
+                  setCicilanInput(formattedValue);
                 }}
                 style={{ padding: '4px 8px', width: '115px', fontSize: '12px' }}
               />
               <SakugaButton
                 variant="primary"
                 className="btn-primary"
-                onClick={savePinjol}
+                onClick={saveCicilan}
                 style={{ padding: '4px 10px', width: 'auto', fontSize: '11px', borderRadius: '3px' }}
               >
                 Simpan
@@ -530,17 +551,17 @@ function App() {
             <SakugaButton
               variant="icon"
               sfxWord="kachi"
-              onClick={() => { setIsEditingPinjol(true); setPinjolInput(totalPinjol ? totalPinjol.toLocaleString('id-ID') : ''); }}
+              onClick={() => { setIsEditingCicilan(true); setCicilanInput(totalCicilan ? totalCicilan.toLocaleString('id-ID') : ''); }}
               style={{ background: 'var(--bg-subtle)', border: '1.5px solid var(--ink-border)', borderRadius: '3px', color: 'var(--text-main)', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
-              title="Atur Total Pinjol"
+              title="Atur Total Cicilan"
             >
               <Edit2 size={14} />
             </SakugaButton>
           )}
         </div>
 
-        <div className="pinjol-amount" style={{ color: totalPinjol > 0 ? 'var(--danger)' : 'var(--success)' }}>
-          {formatRupiah(totalPinjol)}
+        <div className="pinjol-amount" style={{ color: totalCicilan > 0 ? 'var(--danger)' : 'var(--success)' }}>
+          {formatRupiah(totalCicilan)}
         </div>
 
         <div className="balance-breakdown-row" style={{ paddingTop: '10px' }}>
@@ -549,7 +570,7 @@ function App() {
             <p className="breakdown-val" style={{ color: 'var(--success)' }}>{formatRupiah(totalDebtPaid)}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p className="breakdown-label">Uang Bersih (Uang - Pinjol)</p>
+            <p className="breakdown-label">Saldo Bersih</p>
             <p className="breakdown-val" style={{ color: netBalance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
               {formatRupiah(netBalance)}
             </p>
@@ -761,13 +782,13 @@ function App() {
                 <SakugaInput 
                   type="text" 
                   className="minimal-input" 
-                  placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar pinjol 50rb"'
+                  placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar cicilan 50rb"'
                   value={nlpInput}
                   onChange={(e) => setNlpInput(e.target.value)}
                   disabled={isSubmitting}
                 />
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                  Ketikkan cerita transaksi Anda (termasuk bayar atau tambah pinjol), AI akan memecahnya otomatis.
+                  Ketikkan cerita transaksi Anda (termasuk bayar atau tambah cicilan), AI akan memecahnya otomatis.
                 </p>
               </div>
               <SakugaButton 
@@ -793,9 +814,9 @@ function App() {
                       const filteredCats = categories.filter(c => c.type === newType);
                       const fallbackCat =
                         newType === 'debt_payment'
-                          ? 'Bayar Pinjol'
+                          ? 'Bayar Cicilan'
                           : newType === 'debt_add'
-                          ? 'Tambah Pinjol'
+                          ? 'Tambah Cicilan'
                           : '';
                       setManualForm({
                         ...manualForm, 
@@ -805,10 +826,10 @@ function App() {
                       });
                     }}
                   >
-                    <option value="expense">Pengeluaran (-Uang)</option>
-                    <option value="income">Pemasukan (+Uang)</option>
-                    <option value="debt_payment">Bayar Pinjol (-Uang, -Pinjol)</option>
-                    <option value="debt_add">Tambah Pinjol (+Pinjol)</option>
+                    <option value="expense">Pengeluaran (-Saldo)</option>
+                    <option value="income">Pemasukan (+Saldo)</option>
+                    <option value="debt_payment">Bayar Cicilan (-Saldo, -Cicilan)</option>
+                    <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
                   </SakugaSelect>
                 </div>
                 <div style={{ flex: 1 }}>
@@ -955,10 +976,10 @@ function App() {
                             <span className="badge-method" title="Dicatat Manual">Manual</span>
                           )}
                           {tx.transaction_type === 'debt_payment' && (
-                            <span className="badge-method pinjol-pay">Pinjol -</span>
+                            <span className="badge-method pinjol-pay">Cicilan -</span>
                           )}
                           {tx.transaction_type === 'debt_add' && (
-                            <span className="badge-method pinjol-add">Pinjol +</span>
+                            <span className="badge-method pinjol-add">Cicilan +</span>
                           )}
                         </div>
                       </div>

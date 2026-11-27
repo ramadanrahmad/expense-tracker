@@ -1,6 +1,5 @@
 // Zero-dependency Web Audio API synthesizer for Manga / Sakuga UI comic sound effects.
 let ctx = null;
-let muted = typeof localStorage !== 'undefined' && localStorage.getItem('soundMuted') === 'true';
 
 function getCtx() {
   if (typeof window === 'undefined') return null;
@@ -27,20 +26,8 @@ function createNoiseBuffer(audioCtx, duration) {
 }
 
 const soundFx = {
-  isMuted() {
-    return muted;
-  },
-
-  setMuted(val) {
-    muted = !!val;
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('soundMuted', String(muted));
-    }
-  },
-
   // Typing dust pop (soft & non-fatiguing)
   playKeyPop() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;
@@ -59,7 +46,6 @@ const soundFx = {
 
   // Crisp comic click ("Kachi!") for tabs, filters, selects, toggles
   playClick() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;
@@ -77,7 +63,6 @@ const soundFx = {
 
   // Quick comic swoosh ("Shu!") for tab switching & ink transition
   playSwipe() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;
@@ -99,7 +84,6 @@ const soundFx = {
 
   // Manga impact boom ("DON!!") for primary action buttons
   playImpact() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;
@@ -146,7 +130,6 @@ const soundFx = {
 
   // Skid/discard SFX ("Zuza!") for deleting
   playDelete() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;
@@ -167,7 +150,6 @@ const soundFx = {
 
   // Crisp 2-note chime for saving / restoring
   playSuccess() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;
@@ -187,7 +169,6 @@ const soundFx = {
 
   // Celebratory rising anime fanfare when Cicilan reaches Rp 0 (LUNAS!) or target hits 100%
   playLunasFanfare() {
-    if (muted) return;
     const c = getCtx();
     if (!c) return;
     const now = c.currentTime;

@@ -3,7 +3,7 @@ import {
   Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
   PieChart as PieChartIcon, PenTool, Filter, Target, Edit2,
   Sun, Moon, CreditCard, Plus, History, ChevronDown, ChevronUp,
-  Eye, EyeOff, Volume2, VolumeX, Database, Download, Upload,
+  Eye, EyeOff, Database, Download, Upload,
   FileSpreadsheet, Check, X
 } from 'lucide-react';
 import axios from 'axios';
@@ -89,7 +89,6 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(() => localStorage.getItem('isPrivate') === 'true');
-  const [isMuted, setIsMuted] = useState(() => soundFx.isMuted());
   const [pendingAiItems, setPendingAiItems] = useState([]);
   const [editingTxId, setEditingTxId] = useState(null);
   const [editTxForm, setEditTxForm] = useState(null);
@@ -101,15 +100,6 @@ function App() {
     setIsPrivate(next);
     localStorage.setItem('isPrivate', String(next));
   };
-
-  const toggleSound = () => {
-    const next = !isMuted;
-    soundFx.setMuted(next);
-    setIsMuted(next);
-    if (!next) {
-      soundFx.playClick();
-    }
-  };
   
   // Filter States
   const [filterType, setFilterType] = useState('all');
@@ -119,6 +109,9 @@ function App() {
   const [initialCicilan, setInitialCicilan] = useState(() => {
     const val = localStorage.getItem('initialCicilan') ?? localStorage.getItem('initialPinjol');
     return Number(val) || 0;
+  });
+  const [cicilanPaidBaseline, setCicilanPaidBaseline] = useState(() => {
+    return Number(localStorage.getItem('cicilanPaidBaseline')) || 0;
   });
   const [isEditingCicilan, setIsEditingCicilan] = useState(false);
   const [cicilanInput, setCicilanInput] = useState('');
@@ -133,13 +126,14 @@ function App() {
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const totalCicilan = Math.max(0, initialCicilan + totalDebtAdd - totalDebtPaid);
   const netBalance = balance.total - totalCicilan;
-  const totalTagihanCicilan = totalCicilan + totalDebtPaid;
-  const cicilanPaidPct = totalTagihanCicilan > 0 ? Math.min(100, (totalDebtPaid / totalTagihanCicilan) * 100) : 0;
-  const isCicilanLunas = totalCicilan === 0 && totalDebtPaid > 0;
+  const cycleDebtPaid = Math.max(0, totalDebtPaid - cicilanPaidBaseline);
+  const totalTagihanCicilan = totalCicilan + cycleDebtPaid;
+  const cicilanPaidPct = totalTagihanCicilan > 0 ? Math.min(100, (cycleDebtPaid / totalTagihanCicilan) * 100) : 0;
+  const isCicilanLunas = totalCicilan === 0 && cycleDebtPaid > 0;
   const prevCicilanRef = useRef(totalCicilan);
 
   useEffect(() => {
-    if (prevCicilanRef.current > 0 && totalCicilan === 0 && totalDebtPaid > 0) {
+    if (prevCicilanRef.current > 0 && totalCicilan === 0 && cycleDebtPaid > 0) {
       const timer = setTimeout(() => {
         triggerProgressFx(cicilanCardRef.current, true, 'lunas');
       }, 180);
@@ -147,7 +141,7 @@ function App() {
       return () => clearTimeout(timer);
     }
     prevCicilanRef.current = totalCicilan;
-  }, [totalCicilan, totalDebtPaid]);
+  }, [totalCicilan, cycleDebtPaid]);
 
   const celebrateCicilanUpdate = () => {
     if (cicilanCardRef.current && SakugaFX) {
@@ -157,11 +151,19 @@ function App() {
     }
   };
 
+  const resetCicilanCycleProgress = (baselinePaid = totalDebtPaid) => {
+    setCicilanPaidBaseline(baselinePaid);
+    localStorage.setItem('cicilanPaidBaseline', String(baselinePaid));
+  };
+
   const saveCicilan = () => {
     const rawValue = String(cicilanInput).replace(/\D/g, '');
     const desiredTotal = Number(rawValue) || 0;
     const netDebtDelta = totalDebtAdd - totalDebtPaid;
     const nextInitial = desiredTotal - netDebtDelta;
+    if (totalCicilan === 0 && desiredTotal > 0) {
+      resetCicilanCycleProgress(totalDebtPaid);
+    }
     setInitialCicilan(nextInitial);
     localStorage.setItem('initialCicilan', String(nextInitial));
     setIsEditingCicilan(false);
@@ -410,6 +412,10 @@ function App() {
       });
     });
 
+    if (totalCicilan === 0 && newTransactions.some(t => t.transaction_type === 'debt_add')) {
+      resetCicilanCycleProgress(totalDebtPaid);
+    }
+
     setCategories(currentCategories);
     setTransactions(prev => [...prev, ...newTransactions]);
     setPendingAiItems([]);
@@ -447,6 +453,10 @@ function App() {
       input_method: 'manual',
       category: category
     };
+
+    if (totalCicilan === 0 && newTx.transaction_type === 'debt_add' && newTx.amount > 0) {
+      resetCicilanCycleProgress(totalDebtPaid);
+    }
 
     setTransactions([...transactions, newTx]);
     setManualForm({ ...manualForm, amount: '', description: '', isNewCategory: false });
@@ -514,6 +524,12 @@ function App() {
       setCategories(currentCategories);
     }
 
+    const oldTx = transactions.find(tx => tx.id === editingTxId);
+    const prevPaidFromOldTx = oldTx?.transaction_type === 'debt_payment' ? (Number(oldTx.amount) || 0) : 0;
+    if (totalCicilan === 0 && catType === 'debt_add' && oldTx?.transaction_type !== 'debt_add') {
+      resetCicilanCycleProgress(Math.max(0, totalDebtPaid - prevPaidFromOldTx));
+    }
+
     const nextDateIso = editTxForm.date ? new Date(editTxForm.date).toISOString() : new Date().toISOString();
 
     setTransactions(prev => prev.map(tx =>
@@ -556,6 +572,7 @@ function App() {
       transactions,
       categories,
       initialCicilan,
+      cicilanPaidBaseline,
       targetIncome
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -637,6 +654,8 @@ function App() {
         setInitialCicilan(val);
         localStorage.setItem('initialCicilan', String(val));
       }
+      const nextBaseline = Number.isFinite(Number(parsed.cicilanPaidBaseline)) ? Number(parsed.cicilanPaidBaseline) : 0;
+      resetCicilanCycleProgress(nextBaseline);
       if (Number.isFinite(Number(parsed.targetIncome))) {
         const val = Number(parsed.targetIncome);
         setTargetIncome(val);
@@ -682,17 +701,6 @@ function App() {
           </div>
         </div>
         <div className="header-right-actions">
-          <SakugaButton
-            variant="icon"
-            suppressCanvasFx
-            type="button"
-            className={`theme-toggle-btn header-sound-btn ${isMuted ? 'muted' : ''}`}
-            onClick={toggleSound}
-            title={isMuted ? 'Nyalakan Efek Suara Komik' : 'Bisukan Efek Suara Komik'}
-            aria-label="Toggle sound effects"
-          >
-            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </SakugaButton>
           <SakugaButton
             variant="icon"
             sfxWord="kachi"
@@ -808,8 +816,7 @@ function App() {
               title={isPrivate ? 'Tampilkan Nominal' : 'Sembunyikan Nominal (Mode Privasi)'}
               aria-label="Toggle privacy mask"
             >
-              {isPrivate ? <EyeOff size={13} /> : <Eye size={13} />}
-              <span>{isPrivate ? 'Privat' : 'Tampil'}</span>
+              {isPrivate ? <EyeOff size={15} /> : <Eye size={15} />}
             </SakugaButton>
           </div>
           <div className="balance-amount">{displayMoney(balance.total)}</div>
@@ -894,14 +901,14 @@ function App() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
           <span>Progres Pelunasan: <strong style={{ color: 'var(--text-main)' }}>{cicilanPaidPct.toFixed(1)}%</strong></span>
           {isCicilanLunas && (
-            <span className="lunas-badge">🎉 LUNAS!</span>
+            <span className="lunas-badge">LUNAS!</span>
           )}
         </div>
 
         <div className="balance-breakdown-row" style={{ paddingTop: '10px' }}>
           <div>
             <p className="breakdown-label">Total Terbayar</p>
-            <p className="breakdown-val" style={{ color: 'var(--success)' }}>{displayMoney(totalDebtPaid)}</p>
+            <p className="breakdown-val" style={{ color: 'var(--success)' }}>{displayMoney(cycleDebtPaid)}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <p className="breakdown-label">Saldo Bersih</p>

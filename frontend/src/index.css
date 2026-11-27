@@ -821,13 +821,10 @@ select.minimal-input option {
   border-radius: 3px;
   color: var(--text-main);
   cursor: pointer;
-  padding: 4px 7px;
+  padding: 5px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
+  justify-content: center;
 }
 
 .privacy-toggle-btn.active {
@@ -956,10 +953,6 @@ select.minimal-input option {
 .backup-action-btn.primary {
   background: var(--accent-manga);
   color: #FFFFFF;
-}
-
-.header-sound-btn.muted {
-  opacity: 0.68;
 }
 
 @media (max-width: 460px) {

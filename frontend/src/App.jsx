@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
   PieChart as PieChartIcon, PenTool, Filter, Target, Edit2,
-  Sun, Moon, CreditCard, Plus
+  Sun, Moon, CreditCard, Plus, History, ChevronDown, ChevronUp
 } from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -40,7 +40,18 @@ function App() {
   };
 
   // LocalStorage Initializers
-  const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('transactions')) || []);
+  const [transactions, setTransactions] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('transactions')) || [];
+    return saved.map(tx => {
+      if (tx.category?.name === 'Bayar Pinjol') {
+        return { ...tx, category: { ...tx.category, name: 'Bayar Cicilan' } };
+      }
+      if (tx.category?.name === 'Tambah Pinjol') {
+        return { ...tx, category: { ...tx.category, name: 'Tambah Cicilan' } };
+      }
+      return tx;
+    });
+  });
   const [categories, setCategories] = useState(() => {
     const saved = JSON.parse(localStorage.getItem('categories'));
     if (saved) {
@@ -73,6 +84,7 @@ function App() {
   // UI States
   const [activeTab, setActiveTab] = useState('ai'); 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // Filter States
   const [filterType, setFilterType] = useState('all');
@@ -423,7 +435,7 @@ function App() {
             <h3 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)' }}>Filter Waktu</h3>
           </div>
           <span style={{ fontSize: '11px', color: 'var(--accent-manga)', fontWeight: 800, textTransform: 'uppercase' }}>
-            {filterType === 'all' ? 'Semua Waktu' : filterType === '7days' ? '7 Hari Terakhir' : filterType === 'month' ? 'Bulan Ini' : filterType === 'year' ? 'Tahun Ini' : 'Periode Kustom'}
+            {filterType === 'all' ? 'Semua Waktu' : filterType === '7days' ? 'Minggu Ini' : filterType === 'month' ? 'Bulan Ini' : filterType === 'year' ? 'Tahun Ini' : 'Periode Kustom'}
           </span>
         </div>
         
@@ -932,77 +944,100 @@ function App() {
         </div>
       </section>
 
-      {/* Riwayat Transaksi - Exact Grouping & Format */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)' }}>Riwayat Transaksi</h3>
-        
-        {filteredTransactions.length === 0 ? (
-          <div className="minimal-card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
-            Belum ada transaksi di rentang waktu ini.
+      {/* Riwayat Transaksi - Baru muncul ketika diklik */}
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <SakugaButton
+          variant="pill"
+          sfxWord="kachi"
+          type="button"
+          className="history-toggle-btn"
+          onClick={() => setIsHistoryOpen(prev => !prev)}
+          aria-expanded={isHistoryOpen}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <History size={16} style={{ color: 'var(--accent-manga)' }} />
+            <span style={{ fontSize: '14px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Riwayat Transaksi
+            </span>
+            <span className="history-count-pill">
+              {filteredTransactions.length}
+            </span>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {Object.entries(
-              filteredTransactions.reduce((acc, tx) => {
-                const dateStr = new Date(tx.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                if (!acc[dateStr]) acc[dateStr] = [];
-                acc[dateStr].push(tx);
-                return acc;
-              }, {})
-            ).map(([dateLabel, dailyTxs]) => (
-              <div key={dateLabel}>
-                <div className="tx-group-header">{dateLabel}</div>
-                {dailyTxs.map((tx) => (
-                  <div key={tx.id} className="tx-card">
-                    <div className="tx-left">
-                      <div className={`tx-icon-squircle ${tx.transaction_type}`}>
-                        {tx.transaction_type === 'income' ? (
-                          <ArrowUpRight size={18} strokeWidth={2.2} />
-                        ) : tx.transaction_type === 'debt_add' ? (
-                          <Plus size={18} strokeWidth={2.4} />
-                        ) : (
-                          <ArrowDownRight size={18} strokeWidth={2.2} />
-                        )}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <p className="tx-desc">{tx.description}</p>
-                        <div className="tx-meta">
-                          <span>{tx.category?.name || 'Lainnya'}</span>
-                          <span>•</span>
-                          <span>{new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
-                          {tx.input_method === 'nlp' ? (
-                            <span className="badge-method ai" title="Dicatat via AI">AI</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            <span>{isHistoryOpen ? 'Tutup' : 'Lihat'}</span>
+            {isHistoryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </SakugaButton>
+        
+        {isHistoryOpen && (
+          filteredTransactions.length === 0 ? (
+            <div className="minimal-card" style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+              Belum ada transaksi di rentang waktu ini.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {Object.entries(
+                filteredTransactions.reduce((acc, tx) => {
+                  const dateStr = new Date(tx.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                  if (!acc[dateStr]) acc[dateStr] = [];
+                  acc[dateStr].push(tx);
+                  return acc;
+                }, {})
+              ).map(([dateLabel, dailyTxs]) => (
+                <div key={dateLabel}>
+                  <div className="tx-group-header">{dateLabel}</div>
+                  {dailyTxs.map((tx) => (
+                    <div key={tx.id} className="tx-card">
+                      <div className="tx-left">
+                        <div className={`tx-icon-squircle ${tx.transaction_type}`}>
+                          {tx.transaction_type === 'income' ? (
+                            <ArrowUpRight size={18} strokeWidth={2.2} />
+                          ) : tx.transaction_type === 'debt_add' ? (
+                            <Plus size={18} strokeWidth={2.4} />
                           ) : (
-                            <span className="badge-method" title="Dicatat Manual">Manual</span>
-                          )}
-                          {tx.transaction_type === 'debt_payment' && (
-                            <span className="badge-method pinjol-pay">Cicilan -</span>
-                          )}
-                          {tx.transaction_type === 'debt_add' && (
-                            <span className="badge-method pinjol-add">Cicilan +</span>
+                            <ArrowDownRight size={18} strokeWidth={2.2} />
                           )}
                         </div>
+                        <div style={{ minWidth: 0 }}>
+                          <p className="tx-desc">{tx.description}</p>
+                          <div className="tx-meta">
+                            <span>{tx.category?.name || 'Lainnya'}</span>
+                            <span>•</span>
+                            <span>{new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                            {tx.input_method === 'nlp' ? (
+                              <span className="badge-method ai" title="Dicatat via AI">AI</span>
+                            ) : (
+                              <span className="badge-method" title="Dicatat Manual">Manual</span>
+                            )}
+                            {tx.transaction_type === 'debt_payment' && (
+                              <span className="badge-method pinjol-pay">Cicilan -</span>
+                            )}
+                            {tx.transaction_type === 'debt_add' && (
+                              <span className="badge-method pinjol-add">Cicilan +</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="tx-right">
+                        <p className={`tx-amount ${tx.transaction_type}`}>
+                          {tx.transaction_type === 'income' || tx.transaction_type === 'debt_add' ? '+' : '-'}
+                          {formatRupiah(tx.amount)}
+                        </p>
+                        <button 
+                          onClick={(e) => handleDelete(tx.id, e)}
+                          className="btn-delete"
+                          title="Hapus"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
-                    
-                    <div className="tx-right">
-                      <p className={`tx-amount ${tx.transaction_type}`}>
-                        {tx.transaction_type === 'income' || tx.transaction_type === 'debt_add' ? '+' : '-'}
-                        {formatRupiah(tx.amount)}
-                      </p>
-                      <button 
-                        onClick={(e) => handleDelete(tx.id, e)}
-                        className="btn-delete"
-                        title="Hapus"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )
         )}
       </section>
     </div>

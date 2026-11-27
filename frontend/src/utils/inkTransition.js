@@ -1,4 +1,5 @@
 import { flushSync } from 'react-dom';
+import soundFx from './soundFx';
 
 let activeTransition = null;
 
@@ -193,6 +194,7 @@ function runCanvasFallbackWipe(ox, oy, newTheme) {
  * Transitions theme with an organic liquid ink-splatter sweep originating from the clicked button.
  */
 export async function runInkThemeTransition(originEl, nextTheme, applyThemeFn) {
+  soundFx.playSwipe();
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
   let ox = window.innerWidth - 40;

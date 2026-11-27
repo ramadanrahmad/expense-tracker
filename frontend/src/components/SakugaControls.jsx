@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import SakugaFX from '../utils/sakugaCore';
+import soundFx from '../utils/soundFx';
 
 let measureCtx = null;
 function getMeasureCtx() {
@@ -19,16 +20,22 @@ export function triggerThemeFx(el) {
 
 export function triggerDeleteFx(el) {
   if (!el || !SakugaFX) return;
+  soundFx.playDelete();
   const c = SakugaFX.at(el);
   SakugaFX.puff(c.x, c.y, { size: 10, n: 4, vx: -14, vy: -18, life: 0.55 });
   SakugaFX.shards(c.x, c.y, { n: 6, speed: 170, size: 5, life: 0.6, arc: Math.PI * 2, grav: 320 });
   SakugaFX.sfx('zuza', c.x - 24, c.y - 34, { size: 78, rot: -0.1, life: 0.7 });
 }
 
-export function triggerProgressFx(el, reachedFull = false) {
+export function triggerProgressFx(el, reachedFull = false, mode = 'target') {
   if (!el || !SakugaFX) return;
   const c = SakugaFX.at(el);
   if (reachedFull) {
+    if (mode === 'lunas') {
+      soundFx.playLunasFanfare();
+    } else {
+      soundFx.playSuccess();
+    }
     SakugaFX.burst(c.x, c.y, { r: 78, spikes: 15, life: 0.48 });
     SakugaFX.shards(c.x, c.y, { n: 10, speed: 240, size: 7, life: 0.85, arc: 6.28 });
     for (let i = 0; i < 6; i++) {
@@ -121,6 +128,7 @@ export function SakugaButton({
       const n = ++seqRef.current;
 
       if (variant === 'primary') {
+        soundFx.playImpact();
         sq.s.x = Math.min(sq.s.x, 0.68);
         sq.pop.x = 1.12;
         sq.tilt.x = -3.2;
@@ -161,6 +169,7 @@ export function SakugaButton({
         sq.pop.x = 1.18;
         sq.tilt.x = -6;
         if (!suppressCanvasFx) {
+          soundFx.playClick();
           SakugaFX.ticks(c.x, c.y - c.h / 2 - 4, { dir: -Math.PI / 2, n: 3, r: 4, len: 13, fan: 0.6, life: 0.45 });
           SakugaFX.kira(c.x + c.w / 2, c.y - c.h / 2, { r: 12, life: 0.6 });
           if (sfxWord) {
@@ -168,6 +177,11 @@ export function SakugaButton({
           }
         }
       } else {
+        if (sfxWord === 'shu') {
+          soundFx.playSwipe();
+        } else {
+          soundFx.playClick();
+        }
         sq.s.x = Math.min(sq.s.x, 0.8);
         sq.s.v += 3.5;
         sq.pop.x = 1.07;
@@ -270,6 +284,7 @@ export function SakugaInput({
     const inp = inpRef.current;
     const s = springRef.current;
     if (inp && s && SakugaFX) {
+      soundFx.playKeyPop();
       const c = SakugaFX.at(inp, 0, 0.5);
       let x = c.x + c.w * 0.5;
       if (type === 'text' || type === 'password' || type === 'search' || type === 'email' || type === 'url' || type === 'tel') {
@@ -357,6 +372,7 @@ export function SakugaSelect({
     const sel = selRef.current;
     const s = springRef.current;
     if (sel && s && SakugaFX) {
+      soundFx.playClick();
       s.x = 1.06;
       const c = SakugaFX.at(sel);
       SakugaFX.puff(c.x, c.y, { size: 6, n: 3, vy: -18, life: 0.45 });

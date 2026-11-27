@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
   PieChart as PieChartIcon, PenTool, Filter, Target, Edit2,
-  Sun, Moon, CreditCard, Plus, History, ChevronDown, ChevronUp
+  Sun, Moon, CreditCard, Plus, History, ChevronDown, ChevronUp,
+  Eye, EyeOff, Volume2, VolumeX, Database, Download, Upload,
+  FileSpreadsheet, Check, X
 } from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import SakugaFX from './utils/sakugaCore';
+import soundFx from './utils/soundFx';
 import { runInkThemeTransition } from './utils/inkTransition';
 import {
   SakugaButton,
@@ -85,6 +88,28 @@ function App() {
   const [activeTab, setActiveTab] = useState('ai'); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(() => localStorage.getItem('isPrivate') === 'true');
+  const [isMuted, setIsMuted] = useState(() => soundFx.isMuted());
+  const [pendingAiItems, setPendingAiItems] = useState([]);
+  const [editingTxId, setEditingTxId] = useState(null);
+  const [editTxForm, setEditTxForm] = useState(null);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const togglePrivacy = () => {
+    const next = !isPrivate;
+    setIsPrivate(next);
+    localStorage.setItem('isPrivate', String(next));
+  };
+
+  const toggleSound = () => {
+    const next = !isMuted;
+    soundFx.setMuted(next);
+    setIsMuted(next);
+    if (!next) {
+      soundFx.playClick();
+    }
+  };
   
   // Filter States
   const [filterType, setFilterType] = useState('all');
@@ -98,6 +123,7 @@ function App() {
   const [isEditingCicilan, setIsEditingCicilan] = useState(false);
   const [cicilanInput, setCicilanInput] = useState('');
   const cicilanCardRef = useRef(null);
+  const cicilanProgressRef = useRef(null);
 
   const totalDebtAdd = transactions
     .filter(t => t.transaction_type === 'debt_add')
@@ -107,6 +133,21 @@ function App() {
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const totalCicilan = Math.max(0, initialCicilan + totalDebtAdd - totalDebtPaid);
   const netBalance = balance.total - totalCicilan;
+  const totalTagihanCicilan = totalCicilan + totalDebtPaid;
+  const cicilanPaidPct = totalTagihanCicilan > 0 ? Math.min(100, (totalDebtPaid / totalTagihanCicilan) * 100) : 0;
+  const isCicilanLunas = totalCicilan === 0 && totalDebtPaid > 0;
+  const prevCicilanRef = useRef(totalCicilan);
+
+  useEffect(() => {
+    if (prevCicilanRef.current > 0 && totalCicilan === 0 && totalDebtPaid > 0) {
+      const timer = setTimeout(() => {
+        triggerProgressFx(cicilanCardRef.current, true, 'lunas');
+      }, 180);
+      prevCicilanRef.current = totalCicilan;
+      return () => clearTimeout(timer);
+    }
+    prevCicilanRef.current = totalCicilan;
+  }, [totalCicilan, totalDebtPaid]);
 
   const celebrateCicilanUpdate = () => {
     if (cicilanCardRef.current && SakugaFX) {
@@ -276,11 +317,12 @@ function App() {
       const res = await axios.post(`${API_URL}/parse-nlp`, { text: nlpInput });
       const parsedDataList = res.data;
 
-      const newTransactions = [];
-      let currentCategories = [...categories];
+      if (!Array.isArray(parsedDataList) || parsedDataList.length === 0) {
+        alert("AI tidak menemukan detail nominal transaksi. Coba ketik misalnya: 'Beli kopi 20rb'.");
+        return;
+      }
 
-      let hasCicilanUpdate = false;
-      parsedDataList.forEach(parsed => {
+      const drafts = parsedDataList.map((parsed, idx) => {
         let catType = parsed.type || "expense";
         const rawCat = parsed.category || "";
         const lowerCat = rawCat.toLowerCase();
@@ -289,9 +331,6 @@ function App() {
         } else if (lowerCat.includes("tambah pinjol") || lowerCat.includes("tambah cicilan")) {
           catType = "debt_add";
         }
-        if (catType === "debt_payment" || catType === "debt_add") {
-          hasCicilanUpdate = true;
-        }
         const defaultCat = catType === "debt_payment" ? "Bayar Cicilan" : catType === "debt_add" ? "Tambah Cicilan" : "Lainnya";
         const catName =
           catType === "debt_payment" && lowerCat.includes("pinjol")
@@ -299,36 +338,84 @@ function App() {
             : catType === "debt_add" && lowerCat.includes("pinjol")
             ? "Tambah Cicilan"
             : rawCat || defaultCat;
-        
-        let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
-        if (!category) {
-          category = { id: Date.now() + Math.random(), name: catName, type: catType };
-          currentCategories.push(category);
-        }
 
-        newTransactions.push({
-          id: Date.now() + Math.random(),
-          amount: parsed.amount,
+        return {
+          tempId: Date.now() + Math.random() + idx,
+          amount: Number(parsed.amount) || 0,
           transaction_type: catType,
           date: parsed.date || new Date().toISOString(),
-          description: parsed.description,
-          input_method: 'nlp',
-          category: category
-        });
+          category_name: catName,
+          description: parsed.description || catName
+        };
       });
 
-      setCategories(currentCategories);
-      setTransactions([...transactions, ...newTransactions]);
-      setNlpInput('');
-      celebrateBalanceUpdate();
-      if (hasCicilanUpdate) celebrateCicilanUpdate();
-      
+      setPendingAiItems(drafts);
+      soundFx.playClick();
     } catch (error) {
       alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi backend aktif.");
       console.error(error);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const updatePendingAiItem = (tempId, field, value) => {
+    setPendingAiItems(prev => prev.map(item =>
+      item.tempId === tempId ? { ...item, [field]: value } : item
+    ));
+  };
+
+  const removePendingAiItem = (tempId, e) => {
+    triggerDeleteFx(e?.currentTarget);
+    setPendingAiItems(prev => prev.filter(item => item.tempId !== tempId));
+  };
+
+  const cancelPendingAi = () => {
+    setPendingAiItems([]);
+  };
+
+  const confirmAiItems = () => {
+    const validDrafts = pendingAiItems.filter(item => Number(item.amount) > 0);
+    if (validDrafts.length === 0) {
+      alert("Pastikan minimal ada satu item dengan nominal lebih dari 0.");
+      return;
+    }
+
+    const newTransactions = [];
+    let currentCategories = [...categories];
+    let hasCicilanUpdate = false;
+
+    validDrafts.forEach(item => {
+      const catType = item.transaction_type || "expense";
+      if (catType === "debt_payment" || catType === "debt_add") {
+        hasCicilanUpdate = true;
+      }
+      const defaultCat = catType === "debt_payment" ? "Bayar Cicilan" : catType === "debt_add" ? "Tambah Cicilan" : "Lainnya";
+      const catName = (item.category_name || "").trim() || defaultCat;
+
+      let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
+      if (!category) {
+        category = { id: Date.now() + Math.random(), name: catName, type: catType };
+        currentCategories.push(category);
+      }
+
+      newTransactions.push({
+        id: Date.now() + Math.random(),
+        amount: Number(item.amount),
+        transaction_type: catType,
+        date: item.date || new Date().toISOString(),
+        description: (item.description || "").trim() || catName,
+        input_method: 'nlp',
+        category: category
+      });
+    });
+
+    setCategories(currentCategories);
+    setTransactions(prev => [...prev, ...newTransactions]);
+    setPendingAiItems([]);
+    setNlpInput('');
+    celebrateBalanceUpdate();
+    if (hasCicilanUpdate) celebrateCicilanUpdate();
   };
 
   const handleManualSubmit = async (e) => {
@@ -383,11 +470,191 @@ function App() {
     return [];
   })();
 
+  const toLocalDateTimeInput = (isoStr) => {
+    const d = new Date(isoStr || Date.now());
+    if (Number.isNaN(d.getTime())) return '';
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
+  const startEditTx = (tx) => {
+    soundFx.playClick();
+    setEditingTxId(tx.id);
+    setEditTxForm({
+      amount: Number(tx.amount || 0).toLocaleString('id-ID'),
+      transaction_type: tx.transaction_type || 'expense',
+      category_name: tx.category?.name || 'Lainnya',
+      description: tx.description || '',
+      date: toLocalDateTimeInput(tx.date)
+    });
+  };
+
+  const cancelEditTx = () => {
+    setEditingTxId(null);
+    setEditTxForm(null);
+  };
+
+  const saveEditTx = (e) => {
+    e.preventDefault();
+    if (!editTxForm) return;
+    const numericAmount = parseFloat(String(editTxForm.amount).replace(/\D/g, '')) || 0;
+    if (numericAmount <= 0) {
+      alert("Nominal transaksi harus lebih dari 0.");
+      return;
+    }
+
+    const catType = editTxForm.transaction_type || 'expense';
+    const fallbackCat = catType === 'debt_payment' ? 'Bayar Cicilan' : catType === 'debt_add' ? 'Tambah Cicilan' : 'Lainnya';
+    const catName = (editTxForm.category_name || '').trim() || fallbackCat;
+
+    let currentCategories = [...categories];
+    let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
+    if (!category) {
+      category = { id: Date.now() + Math.random(), name: catName, type: catType };
+      currentCategories.push(category);
+      setCategories(currentCategories);
+    }
+
+    const nextDateIso = editTxForm.date ? new Date(editTxForm.date).toISOString() : new Date().toISOString();
+
+    setTransactions(prev => prev.map(tx =>
+      tx.id === editingTxId
+        ? {
+            ...tx,
+            amount: numericAmount,
+            transaction_type: catType,
+            category: category,
+            description: editTxForm.description.trim() || catName,
+            date: nextDateIso
+          }
+        : tx
+    ));
+
+    setEditingTxId(null);
+    setEditTxForm(null);
+    celebrateBalanceUpdate();
+    if (catType === 'debt_payment' || catType === 'debt_add') {
+      celebrateCicilanUpdate();
+    }
+  };
+
   const handleDelete = (id, e) => {
     const btnEl = e?.currentTarget;
     if (!window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
     triggerDeleteFx(btnEl);
+    if (editingTxId === id) {
+      setEditingTxId(null);
+      setEditTxForm(null);
+    }
     setTransactions(transactions.filter(t => t.id !== id));
+  };
+
+  const handleExportJson = () => {
+    const payload = {
+      app: 'Moneta',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      transactions,
+      categories,
+      initialCicilan,
+      targetIncome
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `moneta-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    soundFx.playSuccess();
+  };
+
+  const handleExportCsv = () => {
+    const csvEscape = (val) => {
+      const str = String(val ?? '');
+      return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const typeLabel = {
+      income: 'Pemasukan',
+      expense: 'Pengeluaran',
+      debt_payment: 'Bayar Cicilan',
+      debt_add: 'Tambah Cicilan'
+    };
+    const rows = [
+      ['Tanggal', 'Waktu', 'Jenis', 'Kategori', 'Deskripsi', 'Nominal', 'Metode'],
+      ...transactions.map(tx => {
+        const d = new Date(tx.date);
+        return [
+          d.toLocaleDateString('id-ID'),
+          d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          typeLabel[tx.transaction_type] || tx.transaction_type,
+          tx.category?.name || 'Lainnya',
+          tx.description || '',
+          tx.amount || 0,
+          tx.input_method === 'nlp' ? 'AI' : 'Manual'
+        ].map(csvEscape).join(',');
+      })
+    ];
+    const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `moneta-laporan-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    soundFx.playSuccess();
+  };
+
+  const handleImportJson = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || !Array.isArray(parsed.transactions)) {
+        alert("Format file backup tidak valid. Pastikan memilih file .json hasil export Moneta.");
+        return;
+      }
+      if (!window.confirm(`Pulihkan ${parsed.transactions.length} transaksi dari backup? Data saat ini akan digantikan.`)) {
+        return;
+      }
+
+      const restoredTx = parsed.transactions.map(tx => ({
+        ...tx,
+        amount: Number(tx.amount) || 0,
+        category: tx.category?.name === 'Bayar Pinjol'
+          ? { ...tx.category, name: 'Bayar Cicilan' }
+          : tx.category?.name === 'Tambah Pinjol'
+          ? { ...tx.category, name: 'Tambah Cicilan' }
+          : tx.category
+      }));
+      setTransactions(restoredTx);
+
+      if (Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+        setCategories(parsed.categories);
+      }
+      if (Number.isFinite(Number(parsed.initialCicilan))) {
+        const val = Number(parsed.initialCicilan);
+        setInitialCicilan(val);
+        localStorage.setItem('initialCicilan', String(val));
+      }
+      if (Number.isFinite(Number(parsed.targetIncome))) {
+        const val = Number(parsed.targetIncome);
+        setTargetIncome(val);
+        localStorage.setItem('targetIncome', String(val));
+      }
+
+      setEditingTxId(null);
+      setEditTxForm(null);
+      setPendingAiItems([]);
+      setIsBackupModalOpen(false);
+      soundFx.playSuccess();
+      setTimeout(() => celebrateBalanceUpdate(), 120);
+    } catch (err) {
+      alert("Gagal membaca file backup JSON. Pastikan file tidak rusak.");
+      console.error(err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const formatRupiah = (number) => {
@@ -398,9 +665,14 @@ function App() {
     }).format(number || 0);
   };
 
+  const displayMoney = (number, prefix = '') => {
+    if (isPrivate) return `${prefix}Rp ••••••`;
+    return `${prefix}${formatRupiah(number)}`;
+  };
+
   return (
     <div className="container">
-      {/* Header - Manga Style Aesthetic with Theme Toggle */}
+      {/* Header - Manga Style Aesthetic with Sound, Backup & Theme Toggle */}
       <header className="app-header">
         <div className="brand-badge">
           <div className="brand-icon-box">M</div>
@@ -410,6 +682,28 @@ function App() {
           </div>
         </div>
         <div className="header-right-actions">
+          <SakugaButton
+            variant="icon"
+            suppressCanvasFx
+            type="button"
+            className={`theme-toggle-btn header-sound-btn ${isMuted ? 'muted' : ''}`}
+            onClick={toggleSound}
+            title={isMuted ? 'Nyalakan Efek Suara Komik' : 'Bisukan Efek Suara Komik'}
+            aria-label="Toggle sound effects"
+          >
+            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          </SakugaButton>
+          <SakugaButton
+            variant="icon"
+            sfxWord="kachi"
+            type="button"
+            className="theme-toggle-btn"
+            onClick={() => setIsBackupModalOpen(true)}
+            title="Backup & Restore Data"
+            aria-label="Backup and restore"
+          >
+            <Database size={16} />
+          </SakugaButton>
           <SakugaButton
             variant="icon"
             suppressCanvasFx
@@ -498,13 +792,27 @@ function App() {
         )}
       </section>
 
-      {/* Balance Card - Manga Hero Panel */}
+      {/* Balance Card - Manga Hero Panel with Privacy Toggle */}
       <section ref={balanceCardRef} className="balance-card">
         <div>
-          <span className="balance-label">
-            {filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}
-          </span>
-          <div className="balance-amount">{formatRupiah(balance.total)}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <span className="balance-label">
+              {filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}
+            </span>
+            <SakugaButton
+              variant="icon"
+              sfxWord="kachi"
+              type="button"
+              className={`privacy-toggle-btn ${isPrivate ? 'active' : ''}`}
+              onClick={togglePrivacy}
+              title={isPrivate ? 'Tampilkan Nominal' : 'Sembunyikan Nominal (Mode Privasi)'}
+              aria-label="Toggle privacy mask"
+            >
+              {isPrivate ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{isPrivate ? 'Privat' : 'Tampil'}</span>
+            </SakugaButton>
+          </div>
+          <div className="balance-amount">{displayMoney(balance.total)}</div>
         </div>
 
         <div className="balance-breakdown-row">
@@ -514,14 +822,14 @@ function App() {
             </div>
             <div>
               <p className="breakdown-label">Pemasukan</p>
-              <p className="breakdown-val" style={{ color: 'var(--success)' }}>+{formatRupiah(balance.income)}</p>
+              <p className="breakdown-val" style={{ color: 'var(--success)' }}>{displayMoney(balance.income, '+')}</p>
             </div>
           </div>
           <div style={{ width: '2px', height: '28px', background: 'var(--ink-border)' }}></div>
           <div className="breakdown-item" style={{ justifyContent: 'flex-end', textAlign: 'right' }}>
             <div style={{ textAlign: 'right' }}>
               <p className="breakdown-label">Pengeluaran</p>
-              <p className="breakdown-val" style={{ color: 'var(--danger)' }}>-{formatRupiah(balance.expense)}</p>
+              <p className="breakdown-val" style={{ color: 'var(--danger)' }}>{displayMoney(balance.expense, '-')}</p>
             </div>
             <div className="breakdown-icon expense">
               <ArrowDownRight size={18} strokeWidth={2.2} />
@@ -530,7 +838,7 @@ function App() {
         </div>
       </section>
 
-      {/* Total Cicilan Card (1 Total Gabungan) */}
+      {/* Total Cicilan Card (1 Total Gabungan + Progress Bar Pelunasan) */}
       <section ref={cicilanCardRef} className="minimal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
           <h3 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
@@ -573,18 +881,32 @@ function App() {
         </div>
 
         <div className="pinjol-amount" style={{ color: totalCicilan > 0 ? 'var(--danger)' : 'var(--success)' }}>
-          {formatRupiah(totalCicilan)}
+          {displayMoney(totalCicilan)}
+        </div>
+
+        <div ref={cicilanProgressRef} className="progress-track" style={{ margin: '6px 0 8px' }}>
+          <div
+            className={`progress-fill ${isCicilanLunas ? 'success' : ''}`}
+            style={{ width: `${cicilanPaidPct}%` }}
+          ></div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
+          <span>Progres Pelunasan: <strong style={{ color: 'var(--text-main)' }}>{cicilanPaidPct.toFixed(1)}%</strong></span>
+          {isCicilanLunas && (
+            <span className="lunas-badge">🎉 LUNAS!</span>
+          )}
         </div>
 
         <div className="balance-breakdown-row" style={{ paddingTop: '10px' }}>
           <div>
             <p className="breakdown-label">Total Terbayar</p>
-            <p className="breakdown-val" style={{ color: 'var(--success)' }}>{formatRupiah(totalDebtPaid)}</p>
+            <p className="breakdown-val" style={{ color: 'var(--success)' }}>{displayMoney(totalDebtPaid)}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <p className="breakdown-label">Saldo Bersih</p>
             <p className="breakdown-val" style={{ color: netBalance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-              {formatRupiah(netBalance)}
+              {displayMoney(netBalance)}
             </p>
           </div>
         </div>
@@ -633,8 +955,8 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-          <span>Tercapai: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(balance.income)}</strong></span>
-          <span>Target: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(targetIncome)}</strong></span>
+          <span>Tercapai: <strong style={{ color: 'var(--text-main)' }}>{displayMoney(balance.income)}</strong></span>
+          <span>Target: <strong style={{ color: 'var(--text-main)' }}>{displayMoney(targetIncome)}</strong></span>
         </div>
         
         {/* Progress Bar (Manga Style) */}
@@ -676,7 +998,7 @@ function App() {
                   }} 
                   itemStyle={{ color: 'var(--tooltip-text)', fontSize: '11px', fontWeight: 700 }}
                   formatter={(value, name) => [
-                    formatRupiah(value), 
+                    displayMoney(value), 
                     <span style={{ color: name === 'Pemasukan' ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>{name}</span>
                   ]} 
                 />
@@ -709,7 +1031,7 @@ function App() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value) => formatRupiah(value)} 
+                        formatter={(value) => displayMoney(value)} 
                         contentStyle={{ 
                           backgroundColor: 'var(--tooltip-bg)', 
                           border: '2px solid var(--tooltip-border)', 
@@ -742,7 +1064,7 @@ function App() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value) => formatRupiah(value)} 
+                        formatter={(value) => displayMoney(value)} 
                         contentStyle={{ 
                           backgroundColor: 'var(--tooltip-bg)', 
                           border: '2px solid var(--tooltip-border)', 
@@ -789,30 +1111,127 @@ function App() {
 
         <div>
           {activeTab === 'ai' ? (
-            <form onSubmit={handleNlpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <SakugaInput 
-                  type="text" 
-                  className="minimal-input" 
-                  placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar cicilan 50rb"'
-                  value={nlpInput}
-                  onChange={(e) => setNlpInput(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                  Ketikkan cerita transaksi Anda (termasuk bayar atau tambah cicilan), AI akan memecahnya otomatis.
-                </p>
-              </div>
-              <SakugaButton 
-                variant="primary" 
-                fullWidth 
-                type="submit" 
-                className="btn-primary" 
-                disabled={isSubmitting || !nlpInput.trim()}
-              >
-                {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
-              </SakugaButton>
-            </form>
+            <>
+              <form onSubmit={handleNlpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <SakugaInput 
+                    type="text" 
+                    className="minimal-input" 
+                    placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar cicilan 50rb"'
+                    value={nlpInput}
+                    onChange={(e) => setNlpInput(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    Ketikkan cerita transaksi Anda (termasuk bayar atau tambah cicilan), AI akan memprosesnya untuk Anda konfirmasi.
+                  </p>
+                </div>
+                <SakugaButton 
+                  variant="primary" 
+                  fullWidth 
+                  type="submit" 
+                  className="btn-primary" 
+                  disabled={isSubmitting || !nlpInput.trim()}
+                >
+                  {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
+                </SakugaButton>
+              </form>
+
+              {pendingAiItems.length > 0 && (
+                <div className="ai-confirm-card">
+                  <div className="ai-confirm-header">
+                    <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--accent-manga)' }}>
+                      Konfirmasi Hasil AI ({pendingAiItems.length} item)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={cancelPendingAi}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    >
+                      <X size={13} /> Batal
+                    </button>
+                  </div>
+
+                  {pendingAiItems.map(item => (
+                    <div key={item.tempId} className="ai-draft-item">
+                      <div className="ai-draft-row">
+                        <SakugaSelect
+                          className="minimal-input"
+                          value={item.transaction_type}
+                          onChange={(e) => updatePendingAiItem(item.tempId, 'transaction_type', e.target.value)}
+                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
+                        >
+                          <option value="expense">Pengeluaran (-Saldo)</option>
+                          <option value="income">Pemasukan (+Saldo)</option>
+                          <option value="debt_payment">Bayar Cicilan (-Saldo, -Cicilan)</option>
+                          <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
+                        </SakugaSelect>
+                        <SakugaInput
+                          type="text"
+                          className="minimal-input"
+                          placeholder="Kategori"
+                          value={item.category_name}
+                          onChange={(e) => updatePendingAiItem(item.tempId, 'category_name', e.target.value)}
+                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-delete"
+                          onClick={(e) => removePendingAiItem(item.tempId, e)}
+                          title="Hapus item ini"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div className="ai-draft-row">
+                        <SakugaInput
+                          type="text"
+                          className="minimal-input"
+                          placeholder="Deskripsi"
+                          value={item.description}
+                          onChange={(e) => updatePendingAiItem(item.tempId, 'description', e.target.value)}
+                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1.4 }}
+                        />
+                        <SakugaInput
+                          type="text"
+                          inputMode="numeric"
+                          className="minimal-input"
+                          placeholder="Nominal"
+                          value={item.amount ? Number(item.amount).toLocaleString('id-ID') : ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, '');
+                            updatePendingAiItem(item.tempId, 'amount', raw ? parseInt(raw, 10) : 0);
+                          }}
+                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1, fontWeight: 800 }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                    <SakugaButton
+                      variant="pill"
+                      sfxWord="kachi"
+                      type="button"
+                      onClick={cancelPendingAi}
+                      className="filter-btn"
+                      style={{ flex: 0.45, justifyContent: 'center' }}
+                    >
+                      Batal
+                    </SakugaButton>
+                    <SakugaButton
+                      variant="primary"
+                      type="button"
+                      onClick={confirmAiItems}
+                      className="btn-primary"
+                      style={{ flex: 1 }}
+                    >
+                      Simpan ke Saldo ({pendingAiItems.length})
+                    </SakugaButton>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -988,50 +1407,140 @@ function App() {
                   <div className="tx-group-header">{dateLabel}</div>
                   {dailyTxs.map((tx) => (
                     <div key={tx.id} className="tx-card">
-                      <div className="tx-left">
-                        <div className={`tx-icon-squircle ${tx.transaction_type}`}>
-                          {tx.transaction_type === 'income' ? (
-                            <ArrowUpRight size={18} strokeWidth={2.2} />
-                          ) : tx.transaction_type === 'debt_add' ? (
-                            <Plus size={18} strokeWidth={2.4} />
-                          ) : (
-                            <ArrowDownRight size={18} strokeWidth={2.2} />
-                          )}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <p className="tx-desc">{tx.description}</p>
-                          <div className="tx-meta">
-                            <span>{tx.category?.name || 'Lainnya'}</span>
-                            <span>•</span>
-                            <span>{new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
-                            {tx.input_method === 'nlp' ? (
-                              <span className="badge-method ai" title="Dicatat via AI">AI</span>
-                            ) : (
-                              <span className="badge-method" title="Dicatat Manual">Manual</span>
-                            )}
-                            {tx.transaction_type === 'debt_payment' && (
-                              <span className="badge-method pinjol-pay">Cicilan -</span>
-                            )}
-                            {tx.transaction_type === 'debt_add' && (
-                              <span className="badge-method pinjol-add">Cicilan +</span>
-                            )}
+                      {editingTxId === tx.id && editTxForm ? (
+                        <form onSubmit={saveEditTx} className="tx-edit-form">
+                          <div className="tx-edit-row">
+                            <SakugaSelect
+                              className="minimal-input"
+                              value={editTxForm.transaction_type}
+                              onChange={(e) => setEditTxForm({ ...editTxForm, transaction_type: e.target.value })}
+                              style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
+                            >
+                              <option value="expense">Pengeluaran (-Saldo)</option>
+                              <option value="income">Pemasukan (+Saldo)</option>
+                              <option value="debt_payment">Bayar Cicilan (-Saldo, -Cicilan)</option>
+                              <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
+                            </SakugaSelect>
+                            <SakugaInput
+                              type="text"
+                              className="minimal-input"
+                              placeholder="Kategori"
+                              value={editTxForm.category_name}
+                              onChange={(e) => setEditTxForm({ ...editTxForm, category_name: e.target.value })}
+                              style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
+                              required
+                            />
                           </div>
-                        </div>
-                      </div>
-                      
-                      <div className="tx-right">
-                        <p className={`tx-amount ${tx.transaction_type}`}>
-                          {tx.transaction_type === 'income' || tx.transaction_type === 'debt_add' ? '+' : '-'}
-                          {formatRupiah(tx.amount)}
-                        </p>
-                        <button 
-                          onClick={(e) => handleDelete(tx.id, e)}
-                          className="btn-delete"
-                          title="Hapus"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                          <div className="tx-edit-row">
+                            <SakugaInput
+                              type="text"
+                              inputMode="numeric"
+                              className="minimal-input"
+                              placeholder="Nominal"
+                              value={editTxForm.amount}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, '');
+                                const formatted = raw ? parseInt(raw, 10).toLocaleString('id-ID') : '';
+                                setEditTxForm({ ...editTxForm, amount: formatted });
+                              }}
+                              style={{ padding: '7px 8px', fontSize: '12px', flex: 1, fontWeight: 800 }}
+                              required
+                            />
+                            <SakugaInput
+                              type="datetime-local"
+                              className="minimal-input"
+                              value={editTxForm.date}
+                              onChange={(e) => setEditTxForm({ ...editTxForm, date: e.target.value })}
+                              style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
+                            />
+                          </div>
+                          <SakugaInput
+                            type="text"
+                            className="minimal-input"
+                            placeholder="Deskripsi"
+                            value={editTxForm.description}
+                            onChange={(e) => setEditTxForm({ ...editTxForm, description: e.target.value })}
+                            style={{ padding: '7px 8px', fontSize: '12px' }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '2px' }}>
+                            <SakugaButton
+                              variant="pill"
+                              sfxWord="kachi"
+                              type="button"
+                              onClick={cancelEditTx}
+                              className="filter-btn"
+                              style={{ padding: '6px 12px' }}
+                            >
+                              <X size={13} /> Batal
+                            </SakugaButton>
+                            <SakugaButton
+                              variant="primary"
+                              type="submit"
+                              className="btn-primary"
+                              style={{ padding: '6px 14px', width: 'auto', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Check size={14} /> Simpan
+                            </SakugaButton>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          <div className="tx-left">
+                            <div className={`tx-icon-squircle ${tx.transaction_type}`}>
+                              {tx.transaction_type === 'income' ? (
+                                <ArrowUpRight size={18} strokeWidth={2.2} />
+                              ) : tx.transaction_type === 'debt_add' ? (
+                                <Plus size={18} strokeWidth={2.4} />
+                              ) : (
+                                <ArrowDownRight size={18} strokeWidth={2.2} />
+                              )}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <p className="tx-desc">{tx.description}</p>
+                              <div className="tx-meta">
+                                <span>{tx.category?.name || 'Lainnya'}</span>
+                                <span>•</span>
+                                <span>{new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                                {tx.input_method === 'nlp' ? (
+                                  <span className="badge-method ai" title="Dicatat via AI">AI</span>
+                                ) : (
+                                  <span className="badge-method" title="Dicatat Manual">Manual</span>
+                                )}
+                                {tx.transaction_type === 'debt_payment' && (
+                                  <span className="badge-method pinjol-pay">Cicilan -</span>
+                                )}
+                                {tx.transaction_type === 'debt_add' && (
+                                  <span className="badge-method pinjol-add">Cicilan +</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="tx-right">
+                            <p className={`tx-amount ${tx.transaction_type}`}>
+                              {displayMoney(tx.amount, tx.transaction_type === 'income' || tx.transaction_type === 'debt_add' ? '+' : '-')}
+                            </p>
+                            <div className="tx-action-btns">
+                              <button
+                                type="button"
+                                onClick={() => startEditTx(tx)}
+                                className="btn-edit-tx"
+                                title="Edit Transaksi"
+                              >
+                                <Edit2 size={15} />
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={(e) => handleDelete(tx.id, e)}
+                                className="btn-delete"
+                                title="Hapus"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1040,6 +1549,82 @@ function App() {
           )
         )}
       </section>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: 'none' }}
+        onChange={handleImportJson}
+      />
+
+      {isBackupModalOpen && (
+        <div className="manga-modal-overlay" onClick={() => setIsBackupModalOpen(false)}>
+          <div className="manga-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="manga-modal-header">
+              <h3 className="manga-modal-title">
+                <Database size={16} style={{ color: 'var(--accent-manga)' }} /> Backup & Restore Data
+              </h3>
+              <button
+                type="button"
+                className="btn-delete"
+                onClick={() => { soundFx.playClick(); setIsBackupModalOpen(false); }}
+                title="Tutup"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Data tersimpan lokal di browser ini</span>
+              <strong style={{ color: 'var(--text-main)' }}>{transactions.length} transaksi</strong>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button type="button" className="backup-action-btn" onClick={handleExportJson}>
+                <div>
+                  <div>Export Backup Lengkap (.JSON)</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Simpan semua transaksi, kategori, cicilan & target
+                  </div>
+                </div>
+                <Download size={18} />
+              </button>
+
+              <button type="button" className="backup-action-btn" onClick={handleExportCsv}>
+                <div>
+                  <div>Export Laporan Excel (.CSV)</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Format tabel rapi siap buka di Excel / Google Sheets
+                  </div>
+                </div>
+                <FileSpreadsheet size={18} />
+              </button>
+
+              <button
+                type="button"
+                className="backup-action-btn primary"
+                onClick={() => {
+                  soundFx.playClick();
+                  fileInputRef.current?.click();
+                }}
+              >
+                <div>
+                  <div>Restore Data dari Backup (.JSON)</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', marginTop: '2px' }}>
+                    Muat ulang data dari file backup Moneta sebelumnya
+                  </div>
+                </div>
+                <Upload size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              Tips: Lakukan export JSON berkala agar data Anda tetap aman jika mengganti HP atau membersihkan data browser.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

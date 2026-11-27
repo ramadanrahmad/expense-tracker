@@ -848,41 +848,6 @@ select.minimal-input option {
   box-shadow: 2px 2px 0px var(--ink-shadow);
 }
 
-.ai-confirm-card {
-  margin-top: 14px;
-  padding: 12px;
-  background: var(--bg-subtle);
-  border: 2px dashed var(--ink-border);
-  border-radius: var(--radius-panel);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ai-confirm-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ai-draft-item {
-  background: var(--bg-card);
-  border: 1.8px solid var(--ink-border);
-  border-radius: 4px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 2px 2px 0px var(--ink-shadow);
-}
-
-.ai-draft-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
 .manga-modal-overlay {
   position: fixed;
   inset: 0;
@@ -963,8 +928,7 @@ select.minimal-input option {
     font-size: 10px;
     padding: 4px 7px;
   }
-  .tx-edit-row,
-  .ai-draft-row {
+  .tx-edit-row {
     flex-direction: column;
     align-items: stretch;
   }

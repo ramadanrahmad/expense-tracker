@@ -89,7 +89,6 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(() => localStorage.getItem('isPrivate') === 'true');
-  const [pendingAiItems, setPendingAiItems] = useState([]);
   const [editingTxId, setEditingTxId] = useState(null);
   const [editTxForm, setEditTxForm] = useState(null);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
@@ -324,7 +323,11 @@ function App() {
         return;
       }
 
-      const drafts = parsedDataList.map((parsed, idx) => {
+      const newTransactions = [];
+      let currentCategories = [...categories];
+      let hasCicilanUpdate = false;
+
+      parsedDataList.forEach(parsed => {
         let catType = parsed.type || "expense";
         const rawCat = parsed.category || "";
         const lowerCat = rawCat.toLowerCase();
@@ -332,6 +335,9 @@ function App() {
           catType = "debt_payment";
         } else if (lowerCat.includes("tambah pinjol") || lowerCat.includes("tambah cicilan")) {
           catType = "debt_add";
+        }
+        if (catType === "debt_payment" || catType === "debt_add") {
+          hasCicilanUpdate = true;
         }
         const defaultCat = catType === "debt_payment" ? "Bayar Cicilan" : catType === "debt_add" ? "Tambah Cicilan" : "Lainnya";
         const catName =
@@ -341,87 +347,39 @@ function App() {
             ? "Tambah Cicilan"
             : rawCat || defaultCat;
 
-        return {
-          tempId: Date.now() + Math.random() + idx,
+        let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
+        if (!category) {
+          category = { id: Date.now() + Math.random(), name: catName, type: catType };
+          currentCategories.push(category);
+        }
+
+        newTransactions.push({
+          id: Date.now() + Math.random(),
           amount: Number(parsed.amount) || 0,
           transaction_type: catType,
           date: parsed.date || new Date().toISOString(),
-          category_name: catName,
-          description: parsed.description || catName
-        };
+          description: parsed.description || catName,
+          input_method: 'nlp',
+          category: category
+        });
       });
 
-      setPendingAiItems(drafts);
-      soundFx.playClick();
+      if (totalCicilan === 0 && newTransactions.some(t => t.transaction_type === 'debt_add')) {
+        resetCicilanCycleProgress(totalDebtPaid);
+      }
+
+      setCategories(currentCategories);
+      setTransactions([...transactions, ...newTransactions]);
+      setNlpInput('');
+      soundFx.playSuccess();
+      celebrateBalanceUpdate();
+      if (hasCicilanUpdate) celebrateCicilanUpdate();
     } catch (error) {
       alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi backend aktif.");
       console.error(error);
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const updatePendingAiItem = (tempId, field, value) => {
-    setPendingAiItems(prev => prev.map(item =>
-      item.tempId === tempId ? { ...item, [field]: value } : item
-    ));
-  };
-
-  const removePendingAiItem = (tempId, e) => {
-    triggerDeleteFx(e?.currentTarget);
-    setPendingAiItems(prev => prev.filter(item => item.tempId !== tempId));
-  };
-
-  const cancelPendingAi = () => {
-    setPendingAiItems([]);
-  };
-
-  const confirmAiItems = () => {
-    const validDrafts = pendingAiItems.filter(item => Number(item.amount) > 0);
-    if (validDrafts.length === 0) {
-      alert("Pastikan minimal ada satu item dengan nominal lebih dari 0.");
-      return;
-    }
-
-    const newTransactions = [];
-    let currentCategories = [...categories];
-    let hasCicilanUpdate = false;
-
-    validDrafts.forEach(item => {
-      const catType = item.transaction_type || "expense";
-      if (catType === "debt_payment" || catType === "debt_add") {
-        hasCicilanUpdate = true;
-      }
-      const defaultCat = catType === "debt_payment" ? "Bayar Cicilan" : catType === "debt_add" ? "Tambah Cicilan" : "Lainnya";
-      const catName = (item.category_name || "").trim() || defaultCat;
-
-      let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
-      if (!category) {
-        category = { id: Date.now() + Math.random(), name: catName, type: catType };
-        currentCategories.push(category);
-      }
-
-      newTransactions.push({
-        id: Date.now() + Math.random(),
-        amount: Number(item.amount),
-        transaction_type: catType,
-        date: item.date || new Date().toISOString(),
-        description: (item.description || "").trim() || catName,
-        input_method: 'nlp',
-        category: category
-      });
-    });
-
-    if (totalCicilan === 0 && newTransactions.some(t => t.transaction_type === 'debt_add')) {
-      resetCicilanCycleProgress(totalDebtPaid);
-    }
-
-    setCategories(currentCategories);
-    setTransactions(prev => [...prev, ...newTransactions]);
-    setPendingAiItems([]);
-    setNlpInput('');
-    celebrateBalanceUpdate();
-    if (hasCicilanUpdate) celebrateCicilanUpdate();
   };
 
   const handleManualSubmit = async (e) => {
@@ -664,7 +622,6 @@ function App() {
 
       setEditingTxId(null);
       setEditTxForm(null);
-      setPendingAiItems([]);
       setIsBackupModalOpen(false);
       soundFx.playSuccess();
       setTimeout(() => celebrateBalanceUpdate(), 120);
@@ -1118,127 +1075,30 @@ function App() {
 
         <div>
           {activeTab === 'ai' ? (
-            <>
-              <form onSubmit={handleNlpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <SakugaInput 
-                    type="text" 
-                    className="minimal-input" 
-                    placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar cicilan 50rb"'
-                    value={nlpInput}
-                    onChange={(e) => setNlpInput(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                    Ketikkan cerita transaksi Anda (termasuk bayar atau tambah cicilan), AI akan memprosesnya untuk Anda konfirmasi.
-                  </p>
-                </div>
-                <SakugaButton 
-                  variant="primary" 
-                  fullWidth 
-                  type="submit" 
-                  className="btn-primary" 
-                  disabled={isSubmitting || !nlpInput.trim()}
-                >
-                  {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
-                </SakugaButton>
-              </form>
-
-              {pendingAiItems.length > 0 && (
-                <div className="ai-confirm-card">
-                  <div className="ai-confirm-header">
-                    <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--accent-manga)' }}>
-                      Konfirmasi Hasil AI ({pendingAiItems.length} item)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={cancelPendingAi}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                    >
-                      <X size={13} /> Batal
-                    </button>
-                  </div>
-
-                  {pendingAiItems.map(item => (
-                    <div key={item.tempId} className="ai-draft-item">
-                      <div className="ai-draft-row">
-                        <SakugaSelect
-                          className="minimal-input"
-                          value={item.transaction_type}
-                          onChange={(e) => updatePendingAiItem(item.tempId, 'transaction_type', e.target.value)}
-                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
-                        >
-                          <option value="expense">Pengeluaran (-Saldo)</option>
-                          <option value="income">Pemasukan (+Saldo)</option>
-                          <option value="debt_payment">Bayar Cicilan (-Saldo, -Cicilan)</option>
-                          <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
-                        </SakugaSelect>
-                        <SakugaInput
-                          type="text"
-                          className="minimal-input"
-                          placeholder="Kategori"
-                          value={item.category_name}
-                          onChange={(e) => updatePendingAiItem(item.tempId, 'category_name', e.target.value)}
-                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
-                        />
-                        <button
-                          type="button"
-                          className="btn-delete"
-                          onClick={(e) => removePendingAiItem(item.tempId, e)}
-                          title="Hapus item ini"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <div className="ai-draft-row">
-                        <SakugaInput
-                          type="text"
-                          className="minimal-input"
-                          placeholder="Deskripsi"
-                          value={item.description}
-                          onChange={(e) => updatePendingAiItem(item.tempId, 'description', e.target.value)}
-                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1.4 }}
-                        />
-                        <SakugaInput
-                          type="text"
-                          inputMode="numeric"
-                          className="minimal-input"
-                          placeholder="Nominal"
-                          value={item.amount ? Number(item.amount).toLocaleString('id-ID') : ''}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/\D/g, '');
-                            updatePendingAiItem(item.tempId, 'amount', raw ? parseInt(raw, 10) : 0);
-                          }}
-                          style={{ padding: '7px 8px', fontSize: '12px', flex: 1, fontWeight: 800 }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
-                    <SakugaButton
-                      variant="pill"
-                      sfxWord="kachi"
-                      type="button"
-                      onClick={cancelPendingAi}
-                      className="filter-btn"
-                      style={{ flex: 0.45, justifyContent: 'center' }}
-                    >
-                      Batal
-                    </SakugaButton>
-                    <SakugaButton
-                      variant="primary"
-                      type="button"
-                      onClick={confirmAiItems}
-                      className="btn-primary"
-                      style={{ flex: 1 }}
-                    >
-                      Simpan ke Saldo ({pendingAiItems.length})
-                    </SakugaButton>
-                  </div>
-                </div>
-              )}
-            </>
+            <form onSubmit={handleNlpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <SakugaInput 
+                  type="text" 
+                  className="minimal-input" 
+                  placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar cicilan 50rb"'
+                  value={nlpInput}
+                  onChange={(e) => setNlpInput(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  Ketikkan cerita transaksi Anda (termasuk bayar atau tambah cicilan), AI akan memecahnya otomatis.
+                </p>
+              </div>
+              <SakugaButton 
+                variant="primary" 
+                fullWidth 
+                type="submit" 
+                className="btn-primary" 
+                disabled={isSubmitting || !nlpInput.trim()}
+              >
+                {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
+              </SakugaButton>
+            </form>
           ) : (
             <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>

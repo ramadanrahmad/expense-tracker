@@ -8,7 +8,7 @@ import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:8000` : 'http://localhost:8000');
-const COLORS = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
+const COLORS = ['#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 function App() {
   // Theme State
@@ -276,10 +276,10 @@ function App() {
       <section className="minimal-card" style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>Filter Waktu</h3>
+            <Filter size={15} style={{ color: 'var(--text-main)' }} />
+            <h3 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)' }}>Filter Waktu</h3>
           </div>
-          <span style={{ fontSize: '11px', color: 'var(--accent-purple)', fontWeight: 600 }}>
+          <span style={{ fontSize: '11px', color: 'var(--accent-manga)', fontWeight: 800, textTransform: 'uppercase' }}>
             {filterType === 'all' ? 'Semua Waktu' : filterType === '7days' ? '7 Hari Terakhir' : filterType === 'month' ? 'Bulan Ini' : filterType === 'year' ? 'Tahun Ini' : 'Periode Kustom'}
           </span>
         </div>
@@ -354,7 +354,7 @@ function App() {
               <p className="breakdown-val" style={{ color: 'var(--success)' }}>+{formatRupiah(balance.income)}</p>
             </div>
           </div>
-          <div style={{ width: '1px', height: '28px', background: 'var(--border-light)' }}></div>
+          <div style={{ width: '2px', height: '28px', background: 'var(--ink-border)' }}></div>
           <div className="breakdown-item" style={{ justifyContent: 'flex-end', textAlign: 'right' }}>
             <div style={{ textAlign: 'right' }}>
               <p className="breakdown-label">Pengeluaran</p>
@@ -370,8 +370,8 @@ function App() {
       {/* Target Pemasukan Card */}
       <section className="minimal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-            <Target size={16} style={{ color: 'var(--accent-purple)' }} /> Target Pemasukan
+          <h3 style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
+            <Target size={16} style={{ color: 'var(--accent-manga)' }} /> Target Pemasukan
           </h3>
           {isEditingTarget ? (
             <div style={{ display: 'flex', gap: '6px' }}>
@@ -390,7 +390,7 @@ function App() {
               <button 
                 className="btn-primary" 
                 onClick={saveTarget} 
-                style={{ padding: '4px 10px', width: 'auto', fontSize: '11px', borderRadius: '8px' }}
+                style={{ padding: '4px 10px', width: 'auto', fontSize: '11px', borderRadius: '3px' }}
               >
                 Simpan
               </button>
@@ -398,10 +398,10 @@ function App() {
           ) : (
             <button 
               onClick={() => { setIsEditingTarget(true); setTargetInput(targetIncome ? targetIncome.toLocaleString('id-ID') : ''); }}
-              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              style={{ background: 'var(--bg-subtle)', border: '1.5px solid var(--ink-border)', borderRadius: '3px', color: 'var(--text-main)', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
               title="Edit Target"
             >
-              <Edit2 size={15} />
+              <Edit2 size={14} />
             </button>
           )}
         </div>
@@ -427,56 +427,57 @@ function App() {
         </div>
       </section>
 
-      {/* Bar Chart Section - FIXED: High contrast colors for Pengeluaran */}
+      {/* Bar Chart Section - Manga Comic Styled */}
       {chartData.length > 0 && (
         <section className="minimal-card">
-          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-            <BarChart2 size={16} style={{ color: 'var(--text-muted)' }} /> Arus Kas
+          <h3 style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
+            <BarChart2 size={16} style={{ color: 'var(--text-main)' }} /> Arus Kas
           </h3>
           <div style={{ height: '190px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={11} fontWeight={700} tickLine={false} axisLine={false} />
                 <Tooltip 
                   cursor={{ fill: 'var(--chart-cursor)' }} 
                   contentStyle={{ 
                     backgroundColor: 'var(--tooltip-bg)', 
-                    border: '1px solid var(--tooltip-border)', 
-                    borderRadius: '10px', 
+                    border: '2px solid var(--tooltip-border)', 
+                    borderRadius: '4px', 
                     color: 'var(--tooltip-text)', 
                     fontSize: '11px',
-                    boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
+                    fontWeight: 700,
+                    boxShadow: '3px 3px 0px var(--ink-shadow)'
                   }} 
-                  itemStyle={{ color: 'var(--tooltip-text)', fontSize: '11px' }}
+                  itemStyle={{ color: 'var(--tooltip-text)', fontSize: '11px', fontWeight: 700 }}
                   formatter={(value, name) => [
                     formatRupiah(value), 
-                    <span style={{ color: name === 'Pemasukan' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{name}</span>
+                    <span style={{ color: name === 'Pemasukan' ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>{name}</span>
                   ]} 
                 />
-                <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name="Pemasukan" />
-                <Bar dataKey="expense" fill="#EF4444" radius={[4, 4, 0, 0]} name="Pengeluaran" />
+                <Bar dataKey="income" fill="#10B981" stroke="var(--ink-border)" strokeWidth={2} radius={[2, 2, 0, 0]} name="Pemasukan" />
+                <Bar dataKey="expense" fill="#EF4444" stroke="var(--ink-border)" strokeWidth={2} radius={[2, 2, 0, 0]} name="Pengeluaran" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </section>
       )}
 
-      {/* Pie Chart Section */}
+      {/* Pie Chart Section - Manga Comic Styled */}
       {(expenseCatData.length > 0 || incomeCatData.length > 0) && (
         <section className="minimal-card">
-          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
-            <PieChartIcon size={16} style={{ color: 'var(--text-muted)' }} /> Rincian Kategori
+          <h3 style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
+            <PieChartIcon size={16} style={{ color: 'var(--text-main)' }} /> Rincian Kategori
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {expenseCatData.length > 0 && (
               <div>
-                <h4 style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '6px', fontWeight: 600 }}>
+                <h4 style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '6px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                   Komposisi Pengeluaran
                 </h4>
                 <div style={{ height: '180px', width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={expenseCatData} innerRadius={50} outerRadius={70} paddingAngle={4} dataKey="value">
+                      <Pie data={expenseCatData} innerRadius={50} outerRadius={70} paddingAngle={3} dataKey="value" stroke="var(--ink-border)" strokeWidth={2}>
                         {expenseCatData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
@@ -485,14 +486,16 @@ function App() {
                         formatter={(value) => formatRupiah(value)} 
                         contentStyle={{ 
                           backgroundColor: 'var(--tooltip-bg)', 
-                          border: '1px solid var(--tooltip-border)', 
-                          borderRadius: '10px', 
+                          border: '2px solid var(--tooltip-border)', 
+                          borderRadius: '4px', 
                           color: 'var(--tooltip-text)', 
-                          fontSize: '11px' 
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          boxShadow: '3px 3px 0px var(--ink-shadow)'
                         }} 
-                        itemStyle={{ color: 'var(--tooltip-text)' }}
+                        itemStyle={{ color: 'var(--tooltip-text)', fontWeight: 700 }}
                       />
-                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -501,13 +504,13 @@ function App() {
             
             {incomeCatData.length > 0 && (
               <div>
-                <h4 style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '6px', fontWeight: 600 }}>
+                <h4 style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '6px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                   Sumber Pemasukan
                 </h4>
                 <div style={{ height: '180px', width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={incomeCatData} innerRadius={50} outerRadius={70} paddingAngle={4} dataKey="value">
+                      <Pie data={incomeCatData} innerRadius={50} outerRadius={70} paddingAngle={3} dataKey="value" stroke="var(--ink-border)" strokeWidth={2}>
                         {incomeCatData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
@@ -516,14 +519,16 @@ function App() {
                         formatter={(value) => formatRupiah(value)} 
                         contentStyle={{ 
                           backgroundColor: 'var(--tooltip-bg)', 
-                          border: '1px solid var(--tooltip-border)', 
-                          borderRadius: '10px', 
+                          border: '2px solid var(--tooltip-border)', 
+                          borderRadius: '4px', 
                           color: 'var(--tooltip-text)', 
-                          fontSize: '11px' 
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          boxShadow: '3px 3px 0px var(--ink-shadow)'
                         }} 
-                        itemStyle={{ color: 'var(--tooltip-text)' }}
+                        itemStyle={{ color: 'var(--tooltip-text)', fontWeight: 700 }}
                       />
-                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -619,7 +624,7 @@ function App() {
                         setManualForm({ ...manualForm, isNewCategory: true, category_name: '' });
                       }
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent-purple)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-manga)', fontSize: '11px', cursor: 'pointer', fontWeight: 800, textTransform: 'uppercase' }}
                   >
                     {manualForm.isNewCategory ? 'Batal Tambah' : '+ Kategori Baru'}
                   </button>
@@ -689,7 +694,7 @@ function App() {
 
       {/* Riwayat Transaksi - Exact Grouping & Format */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Riwayat Transaksi</h3>
+        <h3 style={{ fontSize: '15px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)' }}>Riwayat Transaksi</h3>
         
         {filteredTransactions.length === 0 ? (
           <div className="minimal-card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>

@@ -17,8 +17,8 @@ except ImportError:
 class ParsedTransaction(BaseModel):
     date: str = Field(description="Waktu transaksi format YYYY-MM-DDTHH:MM:SS. Jika jam tidak disebut, gunakan waktu saat ini sesuai yang diberikan.")
     amount: int = Field(description="Nominal dalam angka utuh positif tanpa titik koma (misal: 5000000)")
-    category: str = Field(description="Kategori transaksi. Buat nama kategori secara dinamis dan spesifik (misal: 'Gaji', 'Uang Jajan', 'Bonus', 'Makanan', 'Transportasi') berdasarkan teks user.")
-    type: str = Field(description="Tipe transaksi: 'income' atau 'expense'")
+    category: str = Field(description="Kategori transaksi. Buat nama kategori secara dinamis dan spesifik (misal: 'Gaji', 'Uang Jajan', 'Bonus', 'Makanan', 'Transportasi', 'Bayar Pinjol', 'Tambah Pinjol') berdasarkan teks user.")
+    type: str = Field(description="Tipe transaksi: 'income', 'expense', 'debt_payment' (bayar/cicil pinjol), atau 'debt_add' (tambah/catat pinjol)")
     description: str = Field(description="Deskripsi singkat yang jelas dan rapi dari teks asli")
 
 class TransactionList(BaseModel):
@@ -86,6 +86,10 @@ def _parse_with_llm(text: str, api_key: str, existing_categories: List[str] = No
        - PERNYATAAN KEPEMILIKAN: "punya uang", "uang saya", "uangku sisa", "tabungan saya" = MUTLAK Pemasukan (income).
        - BANYAK TRANSAKSI: "Gaji 5 juta tapi bayar kos 1 juta", PECAH jadi 2: Gaji (income) 5jt, dan Kos (expense) 1jt.
        - Pahami ALIRAN UANG: Kehilangan uang = Pengeluaran. Menemukan uang = Pemasukan.
+    7. PENCATATAN PINJOL (SANGAT PENTING!):
+       - BAYAR / CICIL PINJOL (`debt_payment`): Jika user menyebut membayar, mencicil, atau melunasi pinjol/pinjaman online (contoh: "bayar pinjol 50 ribu", "cicil akulaku 200rb", "lunasin spaylater 300k"), set `type` menjadi "debt_payment" dan `category` menjadi "Bayar Pinjol".
+       - TAMBAH / CATAT PINJOL (`debt_add`): Jika user menyebut menambah total/nilai pinjol atau mencatat pinjol baru (contoh: "tambah pinjol 500 ribu", "pinjol nambah 300 ribu", "catat total pinjol 2 juta", "pinjam pinjol 1 juta"), set `type` menjadi "debt_add" dan `category` menjadi "Tambah Pinjol".
+       - JANGAN KELIRU DENGAN PIUTANG ORANG KE USER: Jika orang lain membayar hutang ke user ("Budi bayar utang ke saya 100 ribu"), itu tetap `type` = "income"!
     
     Teks input: "{text}"
     """
@@ -163,15 +167,35 @@ def _parse_with_regex(text: str) -> dict:
         return None
         
     # 1. Determine tx_type FIRST
+    pinjol_keywords = [
+        "pinjol", "kredivo", "akulaku", "spaylater", "spinjam",
+        "adapundi", "kredit pintar", "julo", "easycash", "indodana",
+        "rupiah cepat", "pinjaman online"
+    ]
+    is_reimbursement = any(w in text for w in ["ke saya", "ke aku", "ke gw", "uang balik", "refund"])
+    has_pinjol = any(word in text for word in pinjol_keywords)
+
     tx_type = "expense"
-    if any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih", "uang saya", "punya uang", "saldo", "sisa", "ada uang", "tabungan"]):
-        tx_type = "income"
-    if any(word in text for word in ["mengurangi", "keluar", "bayar", "beli"]):
-        tx_type = "expense"
+    if has_pinjol and not is_reimbursement:
+        if any(w in text for w in ["bayar", "cicil", "nyicil", "lunas", "lunasin", "pelunasan", "angsur", "setor", "kurang"]):
+            tx_type = "debt_payment"
+        elif any(w in text for w in ["tambah", "nambah", "catat", "pinjam", "ngutang", "total", "baru", "naik", "ambil"]):
+            tx_type = "debt_add"
+        else:
+            tx_type = "debt_payment"
+    else:
+        if is_reimbursement or any(word in text for word in ["gaji", "dapat", "terima", "menambah", "masuk", "dikasih", "uang saya", "punya uang", "saldo", "sisa", "ada uang", "tabungan"]):
+            tx_type = "income"
+        if any(word in text for word in ["mengurangi", "keluar", "bayar", "beli"]) and not is_reimbursement:
+            tx_type = "expense"
         
     # 2. Determine category
     category = "Lainnya"
-    if tx_type == "income":
+    if tx_type == "debt_payment":
+        category = "Bayar Pinjol"
+    elif tx_type == "debt_add":
+        category = "Tambah Pinjol"
+    elif tx_type == "income":
         income_map = {
             "Gaji": ["gaji", "bonus", "profit", "laba", "thr"],
             "Uang Saku": ["jajan", "saku", "dikasih", "dapat", "transferan"]

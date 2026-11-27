@@ -25,6 +25,8 @@
   --success-bg: #ECFDF5;
   --danger: #EF4444;
   --danger-bg: #FEF2F2;
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
 
   --border-light: #111111;
   --border-subtle: #D4D4D8;
@@ -94,6 +96,8 @@
   --success-bg: rgba(16, 185, 129, 0.2);
   --danger: #F87171;
   --danger-bg: rgba(239, 68, 68, 0.2);
+  --warning: #FBBF24;
+  --warning-bg: rgba(245, 158, 11, 0.2);
 
   --border-light: #F4F4F5;
   --border-subtle: #3F3F46;
@@ -636,9 +640,15 @@ select.minimal-input option {
   color: var(--success);
 }
 
-.tx-icon-squircle.expense {
+.tx-icon-squircle.expense,
+.tx-icon-squircle.debt_payment {
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+.tx-icon-squircle.debt_add {
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 
 .tx-desc {
@@ -658,6 +668,7 @@ select.minimal-input option {
   font-weight: 600;
   color: var(--text-muted);
   margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 .badge-method {
@@ -674,6 +685,16 @@ select.minimal-input option {
 .badge-method.ai {
   background: var(--accent-manga);
   color: #FFFFFF;
+}
+
+.badge-method.pinjol-pay {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.badge-method.pinjol-add {
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 
 .tx-right {
@@ -693,8 +714,22 @@ select.minimal-input option {
   color: var(--success);
 }
 
-.tx-amount.expense {
+.tx-amount.expense,
+.tx-amount.debt_payment {
   color: var(--danger);
+}
+
+.tx-amount.debt_add {
+  color: var(--warning);
+}
+
+.pinjol-amount {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  margin: 2px 0 12px;
 }
 
 .btn-delete {

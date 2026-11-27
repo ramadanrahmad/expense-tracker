@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
   PieChart as PieChartIcon, PenTool, Filter, Target, Edit2,
-  Sun, Moon
+  Sun, Moon, CreditCard, Plus
 } from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -39,13 +39,15 @@ function App() {
     });
   };
 
-  // LocalStorage Initializers - Exact Original State
+  // LocalStorage Initializers
   const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('transactions')) || []);
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('categories')) || [
     { id: 1, name: 'Makanan & Minuman', type: 'expense' },
     { id: 2, name: 'Transportasi', type: 'expense' },
     { id: 3, name: 'Gaji', type: 'income' },
-    { id: 4, name: 'Lainnya', type: 'expense' }
+    { id: 4, name: 'Lainnya', type: 'expense' },
+    { id: 5, name: 'Bayar Pinjol', type: 'debt_payment' },
+    { id: 6, name: 'Tambah Pinjol', type: 'debt_add' }
   ]);
   
   const [filteredTransactions, setFilteredTransactions] = useState([]);
@@ -63,6 +65,40 @@ function App() {
   // Filter States
   const [filterType, setFilterType] = useState('all');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
+
+  // Pinjol State (1 Total Pinjol Gabungan)
+  const [initialPinjol, setInitialPinjol] = useState(() => Number(localStorage.getItem('initialPinjol')) || 0);
+  const [isEditingPinjol, setIsEditingPinjol] = useState(false);
+  const [pinjolInput, setPinjolInput] = useState('');
+  const pinjolCardRef = useRef(null);
+
+  const totalDebtAdd = transactions
+    .filter(t => t.transaction_type === 'debt_add')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalDebtPaid = transactions
+    .filter(t => t.transaction_type === 'debt_payment')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalPinjol = Math.max(0, initialPinjol + totalDebtAdd - totalDebtPaid);
+  const netBalance = balance.total - totalPinjol;
+
+  const celebratePinjolUpdate = () => {
+    if (pinjolCardRef.current && SakugaFX) {
+      const c = SakugaFX.at(pinjolCardRef.current);
+      SakugaFX.kira(c.x + c.w * 0.25, c.y - 14, { r: 13, life: 0.7 });
+      SakugaFX.ticks(c.x, c.y - c.h / 2 - 4, { dir: -Math.PI / 2, n: 3, r: 4, len: 14, life: 0.45 });
+    }
+  };
+
+  const savePinjol = () => {
+    const rawValue = String(pinjolInput).replace(/\D/g, '');
+    const desiredTotal = Number(rawValue) || 0;
+    const netDebtDelta = totalDebtAdd - totalDebtPaid;
+    const nextInitial = desiredTotal - netDebtDelta;
+    setInitialPinjol(nextInitial);
+    localStorage.setItem('initialPinjol', String(nextInitial));
+    setIsEditingPinjol(false);
+    setTimeout(() => celebratePinjolUpdate(), 80);
+  };
 
   // Target State
   const [targetIncome, setTargetIncome] = useState(() => Number(localStorage.getItem('targetIncome')) || 0);
@@ -158,8 +194,13 @@ function App() {
 
     filtered.forEach(t => {
       const amt = Number(t.amount) || 0;
+      if (t.transaction_type === 'debt_add') {
+        // Penambahan nilai pinjol tidak menambah atau mengurangi Total Uang
+        return;
+      }
+
       if (t.transaction_type === 'income') inc += amt;
-      else exp += amt;
+      else exp += amt; // 'expense' dan 'debt_payment' sama-sama memotong Total Uang
 
       const dateObj = new Date(t.date);
       let key = '';
@@ -173,7 +214,7 @@ function App() {
       if (t.transaction_type === 'income') groupedBy[key].income += amt;
       else groupedBy[key].expense += amt;
       
-      const catName = t.category?.name || 'Lainnya';
+      const catName = t.category?.name || (t.transaction_type === 'debt_payment' ? 'Bayar Pinjol' : 'Lainnya');
       if (t.transaction_type === 'income') {
         incByCategory[catName] = (incByCategory[catName] || 0) + amt;
       } else {
@@ -211,9 +252,20 @@ function App() {
       const newTransactions = [];
       let currentCategories = [...categories];
 
+      let hasPinjolUpdate = false;
       parsedDataList.forEach(parsed => {
-        const catName = parsed.category || "Lainnya";
-        const catType = parsed.type || "expense";
+        let catType = parsed.type || "expense";
+        const rawCat = parsed.category || "";
+        if (catType === "expense" && rawCat.toLowerCase().includes("bayar pinjol")) {
+          catType = "debt_payment";
+        } else if (rawCat.toLowerCase().includes("tambah pinjol")) {
+          catType = "debt_add";
+        }
+        if (catType === "debt_payment" || catType === "debt_add") {
+          hasPinjolUpdate = true;
+        }
+        const defaultCat = catType === "debt_payment" ? "Bayar Pinjol" : catType === "debt_add" ? "Tambah Pinjol" : "Lainnya";
+        const catName = rawCat || defaultCat;
         
         let category = currentCategories.find(c => c.name.toLowerCase() === catName.toLowerCase() && c.type === catType);
         if (!category) {
@@ -236,6 +288,7 @@ function App() {
       setTransactions([...transactions, ...newTransactions]);
       setNlpInput('');
       celebrateBalanceUpdate();
+      if (hasPinjolUpdate) celebratePinjolUpdate();
       
     } catch (error) {
       alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi backend aktif.");
@@ -258,20 +311,44 @@ function App() {
       setCategories(currentCategories);
     }
 
+    const defaultDesc =
+      manualForm.transaction_type === 'debt_payment'
+        ? 'Bayar Pinjol'
+        : manualForm.transaction_type === 'debt_add'
+        ? 'Tambah Pinjol'
+        : '-';
+
     const newTx = {
       id: Date.now() + Math.random(),
       amount: parseFloat(manualForm.amount.toString().replace(/\./g, '')),
       transaction_type: manualForm.transaction_type,
       date: new Date(manualForm.date).toISOString(),
-      description: manualForm.description || "-",
+      description: manualForm.description || defaultDesc,
       input_method: 'manual',
       category: category
     };
 
     setTransactions([...transactions, newTx]);
     setManualForm({ ...manualForm, amount: '', description: '', isNewCategory: false });
-    celebrateBalanceUpdate();
+    if (manualForm.transaction_type === 'debt_payment' || manualForm.transaction_type === 'debt_add') {
+      celebratePinjolUpdate();
+    }
+    if (manualForm.transaction_type !== 'debt_add') {
+      celebrateBalanceUpdate();
+    }
   };
+
+  const availableManualCategories = (() => {
+    const matched = categories.filter(c => c.type === manualForm.transaction_type);
+    if (matched.length > 0) return matched;
+    if (manualForm.transaction_type === 'debt_payment') {
+      return [{ id: 'default-debt-pay', name: 'Bayar Pinjol', type: 'debt_payment' }];
+    }
+    if (manualForm.transaction_type === 'debt_add') {
+      return [{ id: 'default-debt-add', name: 'Tambah Pinjol', type: 'debt_add' }];
+    }
+    return [];
+  })();
 
   const handleDelete = (id, e) => {
     const btnEl = e?.currentTarget;
@@ -416,6 +493,66 @@ function App() {
             <div className="breakdown-icon expense">
               <ArrowDownRight size={18} strokeWidth={2.2} />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Total Pinjol Card (1 Total Pinjol Gabungan) */}
+      <section ref={pinjolCardRef} className="minimal-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <h3 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
+            <CreditCard size={15} style={{ color: 'var(--accent-manga)' }} /> Total Pinjol
+          </h3>
+          {isEditingPinjol ? (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <SakugaInput
+                type="text"
+                className="minimal-input"
+                placeholder="Nominal"
+                value={pinjolInput}
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/\D/g, '');
+                  const formattedValue = rawValue ? parseInt(rawValue, 10).toLocaleString('id-ID') : '';
+                  setPinjolInput(formattedValue);
+                }}
+                style={{ padding: '4px 8px', width: '115px', fontSize: '12px' }}
+              />
+              <SakugaButton
+                variant="primary"
+                className="btn-primary"
+                onClick={savePinjol}
+                style={{ padding: '4px 10px', width: 'auto', fontSize: '11px', borderRadius: '3px' }}
+              >
+                Simpan
+              </SakugaButton>
+            </div>
+          ) : (
+            <SakugaButton
+              variant="icon"
+              sfxWord="kachi"
+              onClick={() => { setIsEditingPinjol(true); setPinjolInput(totalPinjol ? totalPinjol.toLocaleString('id-ID') : ''); }}
+              style={{ background: 'var(--bg-subtle)', border: '1.5px solid var(--ink-border)', borderRadius: '3px', color: 'var(--text-main)', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
+              title="Atur Total Pinjol"
+            >
+              <Edit2 size={14} />
+            </SakugaButton>
+          )}
+        </div>
+
+        <div className="pinjol-amount" style={{ color: totalPinjol > 0 ? 'var(--danger)' : 'var(--success)' }}>
+          {formatRupiah(totalPinjol)}
+        </div>
+
+        <div className="balance-breakdown-row" style={{ paddingTop: '10px' }}>
+          <div>
+            <p className="breakdown-label">Total Terbayar</p>
+            <p className="breakdown-val" style={{ color: 'var(--success)' }}>{formatRupiah(totalDebtPaid)}</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p className="breakdown-label">Uang Bersih (Uang - Pinjol)</p>
+            <p className="breakdown-val" style={{ color: netBalance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+              {formatRupiah(netBalance)}
+            </p>
           </div>
         </div>
       </section>
@@ -624,13 +761,13 @@ function App() {
                 <SakugaInput 
                   type="text" 
                   className="minimal-input" 
-                  placeholder='Cth: "Makan siang 50 ribu, dapet transferan 1 juta"'
+                  placeholder='Cth: "Dapat 100rb, belanja 50rb, bayar pinjol 50rb"'
                   value={nlpInput}
                   onChange={(e) => setNlpInput(e.target.value)}
                   disabled={isSubmitting}
                 />
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                  Ketikkan cerita transaksi Anda, AI akan memecahnya secara otomatis.
+                  Ketikkan cerita transaksi Anda (termasuk bayar atau tambah pinjol), AI akan memecahnya otomatis.
                 </p>
               </div>
               <SakugaButton 
@@ -654,16 +791,24 @@ function App() {
                     onChange={(e) => {
                       const newType = e.target.value;
                       const filteredCats = categories.filter(c => c.type === newType);
+                      const fallbackCat =
+                        newType === 'debt_payment'
+                          ? 'Bayar Pinjol'
+                          : newType === 'debt_add'
+                          ? 'Tambah Pinjol'
+                          : '';
                       setManualForm({
                         ...manualForm, 
                         transaction_type: newType,
-                        category_name: filteredCats.length > 0 ? filteredCats[0].name : '',
+                        category_name: filteredCats.length > 0 ? filteredCats[0].name : fallbackCat,
                         isNewCategory: false
                       });
                     }}
                   >
-                    <option value="expense">Pengeluaran</option>
-                    <option value="income">Pemasukan</option>
+                    <option value="expense">Pengeluaran (-Uang)</option>
+                    <option value="income">Pemasukan (+Uang)</option>
+                    <option value="debt_payment">Bayar Pinjol (-Uang, -Pinjol)</option>
+                    <option value="debt_add">Tambah Pinjol (+Pinjol)</option>
                   </SakugaSelect>
                 </div>
                 <div style={{ flex: 1 }}>
@@ -686,7 +831,7 @@ function App() {
                     type="button"
                     onClick={() => {
                       if (manualForm.isNewCategory) {
-                        const filtered = categories.filter(c => c.type === manualForm.transaction_type);
+                        const filtered = availableManualCategories;
                         setManualForm({ ...manualForm, isNewCategory: false, category_name: filtered.length > 0 ? filtered[0].name : '' });
                       } else {
                         setManualForm({ ...manualForm, isNewCategory: true, category_name: '' });
@@ -704,7 +849,7 @@ function App() {
                     value={manualForm.category_name} 
                     onChange={(e) => setManualForm({ ...manualForm, category_name: e.target.value })}
                   >
-                    {categories.filter(c => c.type === manualForm.transaction_type).map(c => (
+                    {availableManualCategories.map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
                   </SakugaSelect>
@@ -789,8 +934,14 @@ function App() {
                 {dailyTxs.map((tx) => (
                   <div key={tx.id} className="tx-card">
                     <div className="tx-left">
-                      <div className={`tx-icon-squircle ${tx.transaction_type === 'income' ? 'income' : 'expense'}`}>
-                        {tx.transaction_type === 'income' ? <ArrowUpRight size={18} strokeWidth={2.2} /> : <ArrowDownRight size={18} strokeWidth={2.2} />}
+                      <div className={`tx-icon-squircle ${tx.transaction_type}`}>
+                        {tx.transaction_type === 'income' ? (
+                          <ArrowUpRight size={18} strokeWidth={2.2} />
+                        ) : tx.transaction_type === 'debt_add' ? (
+                          <Plus size={18} strokeWidth={2.4} />
+                        ) : (
+                          <ArrowDownRight size={18} strokeWidth={2.2} />
+                        )}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p className="tx-desc">{tx.description}</p>
@@ -803,13 +954,20 @@ function App() {
                           ) : (
                             <span className="badge-method" title="Dicatat Manual">Manual</span>
                           )}
+                          {tx.transaction_type === 'debt_payment' && (
+                            <span className="badge-method pinjol-pay">Pinjol -</span>
+                          )}
+                          {tx.transaction_type === 'debt_add' && (
+                            <span className="badge-method pinjol-add">Pinjol +</span>
+                          )}
                         </div>
                       </div>
                     </div>
                     
                     <div className="tx-right">
                       <p className={`tx-amount ${tx.transaction_type}`}>
-                        {tx.transaction_type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
+                        {tx.transaction_type === 'income' || tx.transaction_type === 'debt_add' ? '+' : '-'}
+                        {formatRupiah(tx.amount)}
                       </p>
                       <button 
                         onClick={(e) => handleDelete(tx.id, e)}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { 
   Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
-  PieChart as PieChartIcon, PenTool, Filter, Target, Edit2, Check
+  PieChart as PieChartIcon, PenTool, Filter, Target, Edit2, Check,
+  Sun, Moon
 } from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -10,6 +11,18 @@ const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ?
 const COLORS = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
 
 function App() {
+  // Theme State
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
+
   // LocalStorage Initializers - Exact Original State
   const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('transactions')) || []);
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('categories')) || [
@@ -234,7 +247,7 @@ function App() {
 
   return (
     <div className="container">
-      {/* Header - Minimalist Image 2 Aesthetic */}
+      {/* Header - Minimalist Image 2 Aesthetic with Theme Toggle */}
       <header className="app-header">
         <div className="brand-badge">
           <div className="brand-icon-box">M</div>
@@ -243,8 +256,19 @@ function App() {
             <p className="brand-sub">Finance App</p>
           </div>
         </div>
-        <div className="header-date-badge">
-          {new Date().toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
+        <div className="header-right-actions">
+          <button 
+            type="button"
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'Beralih ke Mode Gelap' : 'Beralih ke Mode Terang'}
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+          <div className="header-date-badge">
+            {new Date().toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </div>
         </div>
       </header>
 
@@ -311,7 +335,7 @@ function App() {
         )}
       </section>
 
-      {/* Balance Card - Styled cleanly like Image 2 */}
+      {/* Balance Card - Styled cleanly with high-contrast colored values */}
       <section className="balance-card">
         <div>
           <span className="balance-label">
@@ -334,7 +358,7 @@ function App() {
           <div className="breakdown-item" style={{ justifyContent: 'flex-end', textAlign: 'right' }}>
             <div style={{ textAlign: 'right' }}>
               <p className="breakdown-label">Pengeluaran</p>
-              <p className="breakdown-val" style={{ color: 'var(--text-main)' }}>-{formatRupiah(balance.expense)}</p>
+              <p className="breakdown-val" style={{ color: 'var(--danger)' }}>-{formatRupiah(balance.expense)}</p>
             </div>
             <div className="breakdown-icon expense">
               <ArrowDownRight size={18} strokeWidth={2.2} />
@@ -403,23 +427,34 @@ function App() {
         </div>
       </section>
 
-      {/* Bar Chart Section */}
+      {/* Bar Chart Section - FIXED: High contrast colors for Pengeluaran */}
       {chartData.length > 0 && (
         <section className="minimal-card">
-          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
             <BarChart2 size={16} style={{ color: 'var(--text-muted)' }} /> Arus Kas
           </h3>
           <div style={{ height: '190px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.03)' }} 
-                  contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '11px' }} 
-                  formatter={(value) => formatRupiah(value)} 
+                  cursor={{ fill: 'var(--chart-cursor)' }} 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--tooltip-bg)', 
+                    border: '1px solid var(--tooltip-border)', 
+                    borderRadius: '10px', 
+                    color: 'var(--tooltip-text)', 
+                    fontSize: '11px',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
+                  }} 
+                  itemStyle={{ color: 'var(--tooltip-text)', fontSize: '11px' }}
+                  formatter={(value, name) => [
+                    formatRupiah(value), 
+                    <span style={{ color: name === 'Pemasukan' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{name}</span>
+                  ]} 
                 />
-                <Bar dataKey="income" fill="var(--success)" radius={[4, 4, 0, 0]} name="Pemasukan" />
-                <Bar dataKey="expense" fill="var(--accent-black)" radius={[4, 4, 0, 0]} name="Pengeluaran" />
+                <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name="Pemasukan" />
+                <Bar dataKey="expense" fill="#EF4444" radius={[4, 4, 0, 0]} name="Pengeluaran" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -429,7 +464,7 @@ function App() {
       {/* Pie Chart Section */}
       {(expenseCatData.length > 0 || incomeCatData.length > 0) && (
         <section className="minimal-card">
-          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-main)' }}>
             <PieChartIcon size={16} style={{ color: 'var(--text-muted)' }} /> Rincian Kategori
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -446,7 +481,17 @@ function App() {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '11px' }} />
+                      <Tooltip 
+                        formatter={(value) => formatRupiah(value)} 
+                        contentStyle={{ 
+                          backgroundColor: 'var(--tooltip-bg)', 
+                          border: '1px solid var(--tooltip-border)', 
+                          borderRadius: '10px', 
+                          color: 'var(--tooltip-text)', 
+                          fontSize: '11px' 
+                        }} 
+                        itemStyle={{ color: 'var(--tooltip-text)' }}
+                      />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -467,7 +512,17 @@ function App() {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '11px' }} />
+                      <Tooltip 
+                        formatter={(value) => formatRupiah(value)} 
+                        contentStyle={{ 
+                          backgroundColor: 'var(--tooltip-bg)', 
+                          border: '1px solid var(--tooltip-border)', 
+                          borderRadius: '10px', 
+                          color: 'var(--tooltip-text)', 
+                          fontSize: '11px' 
+                        }} 
+                        itemStyle={{ color: 'var(--tooltip-text)' }}
+                      />
                       <Legend wrapperStyle={{ fontSize: '11px' }} />
                     </PieChart>
                   </ResponsiveContainer>

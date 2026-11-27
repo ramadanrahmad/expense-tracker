@@ -53,6 +53,7 @@ export function SakugaButton({
   variant = 'pill', // 'primary' | 'pill' | 'icon' | 'subtle'
   sfxWord,
   fullWidth = false,
+  suppressCanvasFx = false,
   children,
   className = '',
   style = {},
@@ -159,10 +160,12 @@ export function SakugaButton({
         sq.s.x = Math.min(sq.s.x, 0.78);
         sq.pop.x = 1.18;
         sq.tilt.x = -6;
-        SakugaFX.ticks(c.x, c.y - c.h / 2 - 4, { dir: -Math.PI / 2, n: 3, r: 4, len: 13, fan: 0.6, life: 0.45 });
-        SakugaFX.kira(c.x + c.w / 2, c.y - c.h / 2, { r: 12, life: 0.6 });
-        if (sfxWord) {
-          SakugaFX.sfx(sfxWord, c.x - 10, c.y - 36, { size: 64, rot: -0.1, life: 0.6 });
+        if (!suppressCanvasFx) {
+          SakugaFX.ticks(c.x, c.y - c.h / 2 - 4, { dir: -Math.PI / 2, n: 3, r: 4, len: 13, fan: 0.6, life: 0.45 });
+          SakugaFX.kira(c.x + c.w / 2, c.y - c.h / 2, { r: 12, life: 0.6 });
+          if (sfxWord) {
+            SakugaFX.sfx(sfxWord, c.x - 10, c.y - 36, { size: 64, rot: -0.1, life: 0.6 });
+          }
         }
       } else {
         sq.s.x = Math.min(sq.s.x, 0.8);

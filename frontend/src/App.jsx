@@ -7,11 +7,11 @@ import {
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import SakugaFX from './utils/sakugaCore';
+import { runInkThemeTransition } from './utils/inkTransition';
 import {
   SakugaButton,
   SakugaInput,
   SakugaSelect,
-  triggerThemeFx,
   triggerDeleteFx,
   triggerProgressFx
 } from './components/SakugaControls';
@@ -29,9 +29,14 @@ function App() {
     SakugaFX?.setPalette?.(theme);
   }, [theme]);
 
-  const toggleTheme = (e) => {
-    triggerThemeFx(e.currentTarget);
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  const toggleTheme = async (e) => {
+    const btnEl = e.currentTarget;
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    await runInkThemeTransition(btnEl, nextTheme, () => {
+      SakugaFX?.setPalette?.(nextTheme);
+      localStorage.setItem('theme', nextTheme);
+      setTheme(nextTheme);
+    });
   };
 
   // LocalStorage Initializers - Exact Original State
@@ -297,6 +302,7 @@ function App() {
         <div className="header-right-actions">
           <SakugaButton
             variant="icon"
+            suppressCanvasFx
             type="button"
             className="theme-toggle-btn"
             onClick={toggleTheme}

@@ -255,17 +255,12 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  will-change: transform;
+  transition: box-shadow 0.1s ease;
 }
 
 .theme-toggle-btn:hover {
-  transform: translate(-1px, -1px);
   box-shadow: 3.5px 3.5px 0px var(--ink-shadow);
-}
-
-.theme-toggle-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0.5px 0.5px 0px var(--ink-shadow);
 }
 
 .header-date-badge {
@@ -499,6 +494,7 @@ body {
   font-weight: 600;
   color: var(--text-main);
   outline: none;
+  will-change: transform;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
@@ -513,7 +509,18 @@ select.minimal-input option {
   color: var(--text-main);
 }
 
+.sakuga-back {
+  position: absolute;
+  left: -160px;
+  top: -160px;
+  width: calc(100% + 320px);
+  height: calc(100% + 320px);
+  pointer-events: none;
+  z-index: -1;
+}
+
 .btn-primary {
+  position: relative;
   width: 100%;
   padding: 12px;
   border-radius: var(--radius-sm);
@@ -525,24 +532,27 @@ select.minimal-input option {
   letter-spacing: 0.6px;
   border: 2.5px solid var(--ink-border);
   cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
+  will-change: transform;
+  transition: box-shadow 0.1s ease, background-color 0.12s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   font-family: inherit;
   box-shadow: 4px 4px 0px var(--ink-shadow);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--btn-primary-hover);
-  transform: translate(-1px, -1px);
   box-shadow: 5px 5px 0px var(--ink-shadow);
 }
 
-.btn-primary:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 1.5px 1.5px 0px var(--ink-shadow);
+.btn-primary.sakuga-inv {
+  background: var(--text-main) !important;
+  color: var(--bg-card) !important;
+  box-shadow: none !important;
 }
 
 .btn-primary:disabled {

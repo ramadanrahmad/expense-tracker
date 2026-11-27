@@ -1,11 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Bot, ArrowUpRight, ArrowDownRight, Trash2, BarChart2, 
-  PieChart as PieChartIcon, PenTool, Filter, Target, Edit2, Check,
+  PieChart as PieChartIcon, PenTool, Filter, Target, Edit2,
   Sun, Moon
 } from 'lucide-react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import SakugaFX from './utils/sakugaCore';
+import {
+  SakugaButton,
+  SakugaInput,
+  SakugaSelect,
+  triggerThemeFx,
+  triggerDeleteFx,
+  triggerProgressFx
+} from './components/SakugaControls';
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:8000` : 'http://localhost:8000');
 const COLORS = ['#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
@@ -17,9 +26,11 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
+    SakugaFX?.setPalette?.(theme);
   }, [theme]);
 
-  const toggleTheme = () => {
+  const toggleTheme = (e) => {
+    triggerThemeFx(e.currentTarget);
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
@@ -52,6 +63,9 @@ function App() {
   const [targetIncome, setTargetIncome] = useState(() => Number(localStorage.getItem('targetIncome')) || 0);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState('');
+  const progressRef = useRef(null);
+  const balanceCardRef = useRef(null);
+  const prevTargetReachedRef = useRef(false);
 
   const saveTarget = () => {
     const rawValue = String(targetInput).replace(/\D/g, '');
@@ -59,9 +73,21 @@ function App() {
     setTargetIncome(val);
     localStorage.setItem('targetIncome', val);
     setIsEditingTarget(false);
+    const pct = val > 0 ? (balance.income / val) * 100 : 0;
+    setTimeout(() => {
+      triggerProgressFx(progressRef.current, val > 0 && pct >= 100);
+    }, 80);
   };
   
   const targetPercentage = targetIncome > 0 ? (balance.income / targetIncome) * 100 : 0;
+
+  useEffect(() => {
+    const reached = targetIncome > 0 && targetPercentage >= 100;
+    if (reached && !prevTargetReachedRef.current) {
+      triggerProgressFx(progressRef.current, true);
+    }
+    prevTargetReachedRef.current = reached;
+  }, [targetPercentage, targetIncome]);
 
   // Input States
   const [nlpInput, setNlpInput] = useState('');
@@ -160,6 +186,14 @@ function App() {
 
   }, [transactions, filterType, customRange]);
 
+  const celebrateBalanceUpdate = () => {
+    if (balanceCardRef.current && SakugaFX) {
+      const c = SakugaFX.at(balanceCardRef.current);
+      SakugaFX.kira(c.x + c.w * 0.25, c.y - 16, { r: 14, life: 0.75 });
+      SakugaFX.kira(c.x - c.w * 0.2, c.y - 24, { r: 10, life: 0.65 });
+    }
+  };
+
   const handleNlpSubmit = async (e) => {
     e.preventDefault();
     if (!nlpInput.trim()) return;
@@ -196,6 +230,7 @@ function App() {
       setCategories(currentCategories);
       setTransactions([...transactions, ...newTransactions]);
       setNlpInput('');
+      celebrateBalanceUpdate();
       
     } catch (error) {
       alert("Gagal memproses input teks. Pastikan format teks jelas dan koneksi backend aktif.");
@@ -230,10 +265,13 @@ function App() {
 
     setTransactions([...transactions, newTx]);
     setManualForm({ ...manualForm, amount: '', description: '', isNewCategory: false });
+    celebrateBalanceUpdate();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id, e) => {
+    const btnEl = e?.currentTarget;
     if (!window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
+    triggerDeleteFx(btnEl);
     setTransactions(transactions.filter(t => t.id !== id));
   };
 
@@ -247,7 +285,7 @@ function App() {
 
   return (
     <div className="container">
-      {/* Header - Minimalist Image 2 Aesthetic with Theme Toggle */}
+      {/* Header - Manga Style Aesthetic with Theme Toggle */}
       <header className="app-header">
         <div className="brand-badge">
           <div className="brand-icon-box">M</div>
@@ -257,7 +295,8 @@ function App() {
           </div>
         </div>
         <div className="header-right-actions">
-          <button 
+          <SakugaButton
+            variant="icon"
             type="button"
             className="theme-toggle-btn"
             onClick={toggleTheme}
@@ -265,7 +304,7 @@ function App() {
             aria-label="Toggle theme"
           >
             {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-          </button>
+          </SakugaButton>
           <div className="header-date-badge">
             {new Date().toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
@@ -285,37 +324,45 @@ function App() {
         </div>
         
         <div className="filter-bar">
-          <button 
+          <SakugaButton 
+            variant="pill"
+            sfxWord="kachi"
             onClick={() => setFilterType(filterType === '7days' ? 'all' : '7days')} 
             className={`filter-btn ${filterType === '7days' ? 'active' : ''}`}
           >
             Minggu
-          </button>
-          <button 
+          </SakugaButton>
+          <SakugaButton 
+            variant="pill"
+            sfxWord="kachi"
             onClick={() => setFilterType(filterType === 'month' ? 'all' : 'month')} 
             className={`filter-btn ${filterType === 'month' ? 'active' : ''}`}
           >
             Bulan
-          </button>
-          <button 
+          </SakugaButton>
+          <SakugaButton 
+            variant="pill"
+            sfxWord="kachi"
             onClick={() => setFilterType(filterType === 'year' ? 'all' : 'year')} 
             className={`filter-btn ${filterType === 'year' ? 'active' : ''}`}
           >
             Tahun
-          </button>
-          <button 
+          </SakugaButton>
+          <SakugaButton 
+            variant="pill"
+            sfxWord="kachi"
             onClick={() => setFilterType(filterType === 'custom' ? 'all' : 'custom')} 
             className={`filter-btn ${filterType === 'custom' ? 'active' : ''}`}
           >
             Periode
-          </button>
+          </SakugaButton>
         </div>
 
         {filterType === 'custom' && (
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
             <div style={{ flex: 1 }}>
               <label className="input-label">Dari Tanggal</label>
-              <input 
+              <SakugaInput 
                 type="date" 
                 className="minimal-input" 
                 value={customRange.start} 
@@ -324,7 +371,7 @@ function App() {
             </div>
             <div style={{ flex: 1 }}>
               <label className="input-label">Sampai Tanggal</label>
-              <input 
+              <SakugaInput 
                 type="date" 
                 className="minimal-input" 
                 value={customRange.end} 
@@ -335,8 +382,8 @@ function App() {
         )}
       </section>
 
-      {/* Balance Card - Styled cleanly with high-contrast colored values */}
-      <section className="balance-card">
+      {/* Balance Card - Manga Hero Panel */}
+      <section ref={balanceCardRef} className="balance-card">
         <div>
           <span className="balance-label">
             {filterType === 'all' ? 'Total Saldo' : `Total Saldo (${filterType === '7days' ? 'Minggu' : filterType === 'month' ? 'Bulan' : filterType === 'year' ? 'Tahun' : 'Periode'})`}
@@ -374,8 +421,8 @@ function App() {
             <Target size={16} style={{ color: 'var(--accent-manga)' }} /> Target Pemasukan
           </h3>
           {isEditingTarget ? (
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <input 
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <SakugaInput 
                 type="text" 
                 className="minimal-input" 
                 placeholder="Nominal" 
@@ -387,22 +434,25 @@ function App() {
                 }} 
                 style={{ padding: '4px 8px', width: '110px', fontSize: '12px' }} 
               />
-              <button 
+              <SakugaButton 
+                variant="primary"
                 className="btn-primary" 
                 onClick={saveTarget} 
                 style={{ padding: '4px 10px', width: 'auto', fontSize: '11px', borderRadius: '3px' }}
               >
                 Simpan
-              </button>
+              </SakugaButton>
             </div>
           ) : (
-            <button 
+            <SakugaButton 
+              variant="icon"
+              sfxWord="kachi"
               onClick={() => { setIsEditingTarget(true); setTargetInput(targetIncome ? targetIncome.toLocaleString('id-ID') : ''); }}
               style={{ background: 'var(--bg-subtle)', border: '1.5px solid var(--ink-border)', borderRadius: '3px', color: 'var(--text-main)', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
               title="Edit Target"
             >
               <Edit2 size={14} />
-            </button>
+            </SakugaButton>
           )}
         </div>
         
@@ -411,8 +461,8 @@ function App() {
           <span>Target: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(targetIncome)}</strong></span>
         </div>
         
-        {/* Progress Bar (Image 2 Style) */}
-        <div className="progress-track">
+        {/* Progress Bar (Manga Style) */}
+        <div ref={progressRef} className="progress-track">
           <div 
             className={`progress-fill ${targetPercentage >= 100 ? 'success' : ''}`}
             style={{ width: `${Math.min(targetPercentage, 100)}%` }}
@@ -538,30 +588,34 @@ function App() {
         </section>
       )}
 
-      {/* Input Section - AI vs Manual */}
+      {/* Input Section - AI vs Manual with Sakuga Animations */}
       <section className="minimal-card">
         <div className="tab-switch">
-          <button 
+          <SakugaButton 
+            variant="pill"
+            sfxWord="shu"
             type="button"
             onClick={() => setActiveTab('ai')}
             className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
           >
             <Bot size={16} /> AI Input
-          </button>
-          <button 
+          </SakugaButton>
+          <SakugaButton 
+            variant="pill"
+            sfxWord="shu"
             type="button"
             onClick={() => setActiveTab('manual')}
             className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
           >
             <PenTool size={16} /> Manual Input
-          </button>
+          </SakugaButton>
         </div>
 
         <div>
           {activeTab === 'ai' ? (
             <form onSubmit={handleNlpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <input 
+                <SakugaInput 
                   type="text" 
                   className="minimal-input" 
                   placeholder='Cth: "Makan siang 50 ribu, dapet transferan 1 juta"'
@@ -573,16 +627,22 @@ function App() {
                   Ketikkan cerita transaksi Anda, AI akan memecahnya secara otomatis.
                 </p>
               </div>
-              <button type="submit" className="btn-primary" disabled={isSubmitting || !nlpInput.trim()}>
+              <SakugaButton 
+                variant="primary" 
+                fullWidth 
+                type="submit" 
+                className="btn-primary" 
+                disabled={isSubmitting || !nlpInput.trim()}
+              >
                 {isSubmitting ? 'Memproses AI (Butuh Internet)...' : 'Catat Transaksi'}
-              </button>
+              </SakugaButton>
             </form>
           ) : (
             <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="input-label">Jenis</label>
-                  <select 
+                  <SakugaSelect 
                     className="minimal-input" 
                     value={manualForm.transaction_type} 
                     onChange={(e) => {
@@ -598,11 +658,11 @@ function App() {
                   >
                     <option value="expense">Pengeluaran</option>
                     <option value="income">Pemasukan</option>
-                  </select>
+                  </SakugaSelect>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="input-label">Tanggal & Jam</label>
-                  <input 
+                  <SakugaInput 
                     type="datetime-local" 
                     className="minimal-input" 
                     value={manualForm.date} 
@@ -614,7 +674,9 @@ function App() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label className="input-label" style={{ margin: 0 }}>Kategori</label>
-                  <button 
+                  <SakugaButton 
+                    variant="pill"
+                    sfxWord="pon"
                     type="button"
                     onClick={() => {
                       if (manualForm.isNewCategory) {
@@ -627,11 +689,11 @@ function App() {
                     style={{ background: 'none', border: 'none', color: 'var(--accent-manga)', fontSize: '11px', cursor: 'pointer', fontWeight: 800, textTransform: 'uppercase' }}
                   >
                     {manualForm.isNewCategory ? 'Batal Tambah' : '+ Kategori Baru'}
-                  </button>
+                  </SakugaButton>
                 </div>
                 
                 {!manualForm.isNewCategory ? (
-                  <select 
+                  <SakugaSelect 
                     className="minimal-input" 
                     value={manualForm.category_name} 
                     onChange={(e) => setManualForm({ ...manualForm, category_name: e.target.value })}
@@ -639,9 +701,9 @@ function App() {
                     {categories.filter(c => c.type === manualForm.transaction_type).map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
-                  </select>
+                  </SakugaSelect>
                 ) : (
-                  <input 
+                  <SakugaInput 
                     type="text" 
                     className="minimal-input" 
                     placeholder="Ketik nama kategori baru..." 
@@ -654,7 +716,7 @@ function App() {
 
               <div>
                 <label className="input-label">Nominal (Rp)</label>
-                <input 
+                <SakugaInput 
                   type="text" 
                   inputMode="numeric"
                   className="minimal-input" 
@@ -675,7 +737,7 @@ function App() {
 
               <div>
                 <label className="input-label">Deskripsi (Opsional)</label>
-                <input 
+                <SakugaInput 
                   type="text" 
                   className="minimal-input" 
                   placeholder="Catatan transaksi (opsional)..." 
@@ -684,9 +746,15 @@ function App() {
                 />
               </div>
               
-              <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              <SakugaButton 
+                variant="primary" 
+                fullWidth 
+                type="submit" 
+                className="btn-primary" 
+                disabled={isSubmitting}
+              >
                 Simpan Manual
-              </button>
+              </SakugaButton>
             </form>
           )}
         </div>
@@ -738,7 +806,7 @@ function App() {
                         {tx.transaction_type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
                       </p>
                       <button 
-                        onClick={() => handleDelete(tx.id)}
+                        onClick={(e) => handleDelete(tx.id, e)}
                         className="btn-delete"
                         title="Hapus"
                       >

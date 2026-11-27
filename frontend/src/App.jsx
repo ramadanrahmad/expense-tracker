@@ -734,8 +734,8 @@ function App() {
         </div>
 
         {filterType === 'custom' && (
-          <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-            <div style={{ flex: 1 }}>
+          <div className="form-row-2" style={{ marginTop: '12px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="input-label">Dari Tanggal</label>
               <SakugaInput 
                 type="date" 
@@ -744,7 +744,7 @@ function App() {
                 onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })} 
               />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="input-label">Sampai Tanggal</label>
               <SakugaInput 
                 type="date" 
@@ -1101,8 +1101,8 @@ function App() {
             </form>
           ) : (
             <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
+              <div className="form-row-2">
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label className="input-label">Jenis</label>
                   <SakugaSelect 
                     className="minimal-input" 
@@ -1130,7 +1130,7 @@ function App() {
                     <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
                   </SakugaSelect>
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label className="input-label">Tanggal & Jam</label>
                   <SakugaInput 
                     type="datetime-local" 

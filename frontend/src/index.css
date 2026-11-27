@@ -161,6 +161,12 @@ html.vt-active *::after {
   transition: none !important;
 }
 
+html {
+  overflow-x: hidden;
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-app);
@@ -168,6 +174,9 @@ body {
   background-size: 12px 12px;
   color: var(--text-main);
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -177,11 +186,14 @@ body {
 .container {
   width: 100%;
   max-width: 520px;
+  min-width: 0;
   margin: 0 auto;
   padding: 20px 16px 40px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overflow-x: hidden;
+  overflow-x: clip;
   background-color: var(--bg-container);
   background-image: radial-gradient(var(--dot-container) 1px, transparent 1px);
   background-size: 10px 10px;
@@ -208,6 +220,8 @@ body {
   border-radius: var(--radius-panel);
   padding: 18px;
   box-shadow: var(--shadow-panel);
+  min-width: 0;
+  max-width: 100%;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -353,6 +367,8 @@ body {
   border-radius: var(--radius-panel);
   padding: 20px;
   box-shadow: 5px 5px 0px var(--balance-shadow);
+  min-width: 0;
+  max-width: 100%;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -367,12 +383,13 @@ body {
 .balance-amount {
   font-family: var(--font-display);
   font-style: italic;
-  font-size: 32px;
+  font-size: clamp(22px, 7.2vw, 32px);
   font-weight: 900;
   letter-spacing: -0.5px;
   color: var(--text-main);
   text-shadow: 2.5px 2.5px 0px var(--accent-manga);
   margin: 4px 0 16px;
+  word-break: break-word;
 }
 
 .balance-breakdown-row {
@@ -386,6 +403,7 @@ body {
 
 .breakdown-item {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -920,7 +938,37 @@ select.minimal-input option {
   color: #FFFFFF;
 }
 
+.form-row-2 {
+  display: flex;
+  gap: 10px;
+}
+
 @media (max-width: 460px) {
+  .container {
+    padding: 14px 12px 32px;
+    gap: 14px;
+  }
+  .minimal-card {
+    padding: 14px;
+  }
+  .balance-card {
+    padding: 16px 14px;
+  }
+  .pinjol-amount {
+    font-size: clamp(20px, 6.2vw, 26px);
+    word-break: break-word;
+  }
+  .breakdown-icon {
+    width: 30px;
+    height: 30px;
+  }
+  .breakdown-val {
+    font-size: 12px;
+    word-break: break-word;
+  }
+  .brand-title {
+    font-size: 18px;
+  }
   .header-right-actions {
     gap: 5px;
   }
@@ -928,6 +976,7 @@ select.minimal-input option {
     font-size: 10px;
     padding: 4px 7px;
   }
+  .form-row-2,
   .tx-edit-row {
     flex-direction: column;
     align-items: stretch;

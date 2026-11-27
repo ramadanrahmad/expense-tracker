@@ -20,7 +20,7 @@ const P = { fill: '#ffffff', shade: '#e4e4e7', line: '#111111', accent: '#EF4444
 const VARS = '--sk-card:#fff;--sk-ink:#111111;--sk-dim:#52525B;--sk-soft:#e4e4e7;--sk-pri:#EF4444;--sk-pri-ink:#ffffff;--sk-acc:#EF4444;--sk-track:#ffffff;--sk-r:4px;--sk-bw:2.5px;--sk-sh:4px 4px 0 #111111;--sk-btn-sh:var(--sk-sh);--sk-btn-line:var(--sk-ink);--sk-alt-sh:var(--sk-sh);--sk-alt-line:var(--sk-ink);--sk-tick:var(--sk-ink);--sk-fill:var(--sk-acc);--sk-on-pri:#fff;';
 // :where() keeps these at no specificity, so a page's own :root { --sk-acc: ... } wins.
 const pageCss = `:where(:root){${VARS}}
-canvas.sakuga-fx{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483000}`;
+canvas.sakuga-fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2147483000}`;
 document.head.append(Object.assign(document.createElement('style'), { textContent: pageCss }));
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)');

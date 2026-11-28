@@ -1124,10 +1124,10 @@ function App() {
                       });
                     }}
                   >
-                    <option value="expense">Pengeluaran (-Saldo)</option>
-                    <option value="income">Pemasukan (+Saldo)</option>
-                    <option value="debt_payment">Bayar Cicilan (-Saldo, -Cicilan)</option>
-                    <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
+                    <option value="expense">Pengeluaran</option>
+                    <option value="income">Pemasukan</option>
+                    <option value="debt_payment">Bayar Cicilan</option>
+                    <option value="debt_add">Tambah Cicilan</option>
                   </SakugaSelect>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1283,10 +1283,10 @@ function App() {
                               onChange={(e) => setEditTxForm({ ...editTxForm, transaction_type: e.target.value })}
                               style={{ padding: '7px 8px', fontSize: '12px', flex: 1 }}
                             >
-                              <option value="expense">Pengeluaran (-Saldo)</option>
-                              <option value="income">Pemasukan (+Saldo)</option>
-                              <option value="debt_payment">Bayar Cicilan (-Saldo, -Cicilan)</option>
-                              <option value="debt_add">Tambah Cicilan (+Cicilan)</option>
+                              <option value="expense">Pengeluaran</option>
+                              <option value="income">Pemasukan</option>
+                              <option value="debt_payment">Bayar Cicilan</option>
+                              <option value="debt_add">Tambah Cicilan</option>
                             </SakugaSelect>
                             <SakugaInput
                               type="text"
